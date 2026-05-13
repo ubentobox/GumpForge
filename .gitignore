@@ -1,0 +1,46 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# .NET
+.dotnet/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+
+# User-specific
+*.rsuser
+*.userprefs
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# OS junk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.DS_Store?
+._*
+
+# NuGet
+packages/
+*.nupkg
+!**/packages/build/
+
+# Test results
+TestResults/
+coverage/
+
+# Publish output
+publish/

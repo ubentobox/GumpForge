@@ -1,0 +1,745 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GumpForge.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="using:GumpForge.App.Controls"
+        xmlns:models="using:GumpForge.Core.Models"
+        xmlns:services="using:GumpForge.Core.Services"
+        xmlns:conv="using:GumpForge.App.Converters"
+        xmlns:ae="using:AvaloniaEdit"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+        x:Class="GumpForge.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Width="1400" Height="900"
+        MinWidth="1000" MinHeight="600"
+        Background="#1a1a2e"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <!-- Dark theme overrides for a premium UO editor feel -->
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#1a1a2e"/>
+        </Style>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#e0e0e0"/>
+        </Style>
+        <Style Selector="Border.panel-header">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="4,4,0,0"/>
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="#0f3460"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="#16213e"/>
+        </Style>
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="#16213e"/>
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Foreground" Value="#e0e0e0"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="#b0b0b0"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#e94560"/>
+        </Style>
+        <Style Selector="Button.toolbar-btn">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#e0e0e0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.toolbar-btn:pointerover">
+            <Setter Property="Background" Value="#e94560"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- ═══════════ MENU BAR ═══════════ -->
+        <Menu DockPanel.Dock="Top" Background="#16213e" Padding="4,2">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" Command="{Binding NewDocumentCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="_Open Project..." Command="{Binding OpenDocumentCommand}" InputGesture="Ctrl+O"/>
+                <Separator/>
+                <MenuItem Header="_Save" Command="{Binding SaveDocumentCommand}" InputGesture="Ctrl+S"/>
+                <MenuItem Header="Save _As..." Command="{Binding SaveDocumentAsCommand}" InputGesture="Ctrl+Shift+S"/>
+                <Separator/>
+                <MenuItem Header="_Import from Code..." Command="{Binding ImportFromCodeCommand}"/>
+                <MenuItem Header="Open _Client Folder..." Command="{Binding OpenClientFolderCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Export as PNG..." InputGesture="F5" Click="ExportPng_Click"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"/>
+                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="Cu_t" Command="{Binding CutSelectedCommand}" InputGesture="Ctrl+X"/>
+                <MenuItem Header="_Copy" Command="{Binding CopySelectedCommand}" InputGesture="Ctrl+C"/>
+                <MenuItem Header="_Paste" Command="{Binding PasteElementsCommand}" InputGesture="Ctrl+V"/>
+                <MenuItem Header="_Duplicate" Command="{Binding DuplicateSelectedCommand}" InputGesture="Ctrl+D"/>
+                <MenuItem Header="_Delete" Command="{Binding DeleteSelectedCommand}" InputGesture="Delete"/>
+                <Separator/>
+                <MenuItem Header="Select _All" Command="{Binding SelectAllCommand}" InputGesture="Ctrl+A"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Show _Grid" Command="{Binding ToggleGridCommand}"/>
+                <MenuItem Header="Show _Rulers" Command="{Binding ToggleRulersCommand}"/>
+                <MenuItem Header="_Snap to Grid" Command="{Binding ToggleSnapCommand}"/>
+                <Separator/>
+                <MenuItem Header="Zoom _In" Command="{Binding ZoomInCommand}" InputGesture="Ctrl+OemPlus"/>
+                <MenuItem Header="Zoom _Out" Command="{Binding ZoomOutCommand}" InputGesture="Ctrl+OemMinus"/>
+                <MenuItem Header="Zoom to _Fit" Command="{Binding ZoomFitCommand}"/>
+                <MenuItem Header="Zoom _1:1" Command="{Binding ZoomResetCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Insert">
+                <MenuItem Header="_Background" Command="{Binding AddBackgroundCommand}"/>
+                <MenuItem Header="_Image" Command="{Binding AddImageCommand}"/>
+                <MenuItem Header="Image _Tiled" Command="{Binding AddImageTiledCommand}"/>
+                <MenuItem Header="B_utton" Command="{Binding AddButtonCommand}"/>
+                <MenuItem Header="_Label" Command="{Binding AddLabelCommand}"/>
+                <MenuItem Header="_Html Region" Command="{Binding AddHtmlRegionCommand}"/>
+                <MenuItem Header="_Text Entry" Command="{Binding AddTextEntryCommand}"/>
+                <MenuItem Header="_Alpha Region" Command="{Binding AddAlphaRegionCommand}"/>
+                <MenuItem Header="_Checkbox" Command="{Binding AddCheckCommand}"/>
+                <MenuItem Header="_Radio Button" Command="{Binding AddRadioCommand}"/>
+                <MenuItem Header="I_tem" Command="{Binding AddItemCommand}"/>
+                <Separator/>
+                <MenuItem Header="Add _Sample Elements" Command="{Binding AddSampleElementsCommand}"/>
+                <Separator/>
+                <MenuItem Header="Add Pa_ge" Command="{Binding AddPageCommand}"/>
+                <MenuItem Header="Remove Page" Command="{Binding RemovePageCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Arrange">
+                <MenuItem Header="_Align Left" Command="{Binding AlignLeftCommand}"/>
+                <MenuItem Header="Align _Right" Command="{Binding AlignRightCommand}"/>
+                <MenuItem Header="Align _Top" Command="{Binding AlignTopCommand}"/>
+                <MenuItem Header="Align _Bottom" Command="{Binding AlignBottomCommand}"/>
+                <MenuItem Header="Align Center _H" Command="{Binding AlignCenterHCommand}"/>
+                <MenuItem Header="Align Center _V" Command="{Binding AlignCenterVCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Distribute Horizontally" Command="{Binding DistributeHCommand}"/>
+                <MenuItem Header="D_istribute Vertically" Command="{Binding DistributeVCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Group" Command="{Binding GroupSelectedCommand}" InputGesture="Ctrl+G"/>
+                <MenuItem Header="_Ungroup" Command="{Binding UngroupSelectedCommand}" InputGesture="Ctrl+Shift+G"/>
+                <Separator/>
+                <MenuItem Header="Bring to _Front" Command="{Binding BringToFrontCommand}"/>
+                <MenuItem Header="Send to _Back" Command="{Binding SendToBackCommand}"/>
+                <MenuItem Header="Bring For_ward" Command="{Binding BringForwardCommand}"/>
+                <MenuItem Header="Send Back_ward" Command="{Binding SendBackwardCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Apply Code to Canvas" Command="{Binding ApplyCodeCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Import Images..."/>
+                <MenuItem Header="_Export Code..."/>
+                <Separator/>
+                <MenuItem Header="_Validation"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_Quick Start Guide" Click="Help_Click" InputGesture="F1"/>
+                <Separator/>
+                <MenuItem Header="_About GumpForge" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- ═══════════ TOOLBAR ═══════════ -->
+        <Border DockPanel.Dock="Top" Background="#16213e" Padding="4,3" BorderBrush="#1a1a40" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="toolbar-btn" Content="▊ New" Command="{Binding NewDocumentCommand}" ToolTip.Tip="New Document"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <Button Classes="toolbar-btn" Content="↶ Undo" Command="{Binding UndoCommand}" ToolTip.Tip="Undo"/>
+                <Button Classes="toolbar-btn" Content="↷ Redo" Command="{Binding RedoCommand}" ToolTip.Tip="Redo"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <Button Classes="toolbar-btn" Content="⊞ Grid" Command="{Binding ToggleGridCommand}" ToolTip.Tip="Toggle Grid"/>
+                <Button Classes="toolbar-btn" Content="📏 Snap" Command="{Binding ToggleSnapCommand}" ToolTip.Tip="Toggle Snap to Grid"/>
+                <Button Classes="toolbar-btn" Content="🗙 Guides" Command="{Binding ClearGuidesCommand}" ToolTip.Tip="Clear all guide lines (double-click rulers to add)"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <Button Classes="toolbar-btn" Content="↤ Align L" Command="{Binding AlignLeftCommand}" ToolTip.Tip="Align Left"/>
+                <Button Classes="toolbar-btn" Content="↦ Align R" Command="{Binding AlignRightCommand}" ToolTip.Tip="Align Right"/>
+                <Button Classes="toolbar-btn" Content="↥ Align T" Command="{Binding AlignTopCommand}" ToolTip.Tip="Align Top"/>
+                <Button Classes="toolbar-btn" Content="↧ Align B" Command="{Binding AlignBottomCommand}" ToolTip.Tip="Align Bottom"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <Button Classes="toolbar-btn" Content="+ BG" Command="{Binding AddBackgroundCommand}" ToolTip.Tip="Add Background"/>
+                <Button Classes="toolbar-btn" Content="+ Btn" Command="{Binding AddButtonCommand}" ToolTip.Tip="Add Button"/>
+                <Button Classes="toolbar-btn" Content="+ Lbl" Command="{Binding AddLabelCommand}" ToolTip.Tip="Add Label"/>
+                <Button Classes="toolbar-btn" Content="+ Img" Command="{Binding AddImageCommand}" ToolTip.Tip="Add Image"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <Button Classes="toolbar-btn" Content="📸 PNG" Click="ExportPng_Click" ToolTip.Tip="Export canvas as PNG (F5)"/>
+                <Button Classes="toolbar-btn" Content="📦 MUL" Command="{Binding ExportToMulCommand}" ToolTip.Tip="Export gump to MUL files (F6)"/>
+                <Button Classes="toolbar-btn" Content="🖼️ Import" Command="{Binding ImportCustomAssetCommand}" ToolTip.Tip="Import PNG as custom gump art"/>
+                <Button Classes="toolbar-btn" Content="🎭 Demo" Command="{Binding AddSampleElementsCommand}" ToolTip.Tip="Add sample elements" Background="#e94560" Foreground="White"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+                <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="4,0" Foreground="#888"/>
+                <TextBlock Text="{Binding Canvas.Zoom, StringFormat={}{0:P0}}" VerticalAlignment="Center" Foreground="#e94560" FontWeight="Bold"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══════════ STATUS BAR ═══════════ -->
+        <Border DockPanel.Dock="Bottom" Background="#0f1a2e" Padding="8,4" BorderBrush="#1a1a40" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
+                <TextBlock Text="{Binding Selection.PrimarySelection.ElementType, FallbackValue='No Selection', TargetNullValue='No Selection'}"
+                           Foreground="#e94560" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
+                            IsVisible="{Binding Selection.HasSingleSelection}">
+                    <TextBlock Text="X:" Foreground="#666" FontSize="10" Margin="0,0,2,0"/>
+                    <TextBlock Text="{Binding Selection.PrimarySelection.X}" Foreground="#aaa" FontSize="10" Margin="0,0,8,0"/>
+                    <TextBlock Text="Y:" Foreground="#666" FontSize="10" Margin="0,0,2,0"/>
+                    <TextBlock Text="{Binding Selection.PrimarySelection.Y}" Foreground="#aaa" FontSize="10" Margin="0,0,8,0"/>
+                    <TextBlock Text="W:" Foreground="#666" FontSize="10" Margin="0,0,2,0"/>
+                    <TextBlock Text="{Binding Selection.PrimarySelection.Width}" Foreground="#aaa" FontSize="10" Margin="0,0,8,0"/>
+                    <TextBlock Text="H:" Foreground="#666" FontSize="10" Margin="0,0,2,0"/>
+                    <TextBlock Text="{Binding Selection.PrimarySelection.Height}" Foreground="#aaa" FontSize="10"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2"/>
+                <TextBlock Grid.Column="3" Foreground="#555" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="Grid: {0}  Snap: {1}">
+                            <Binding Path="Canvas.ShowGrid"/>
+                            <Binding Path="Canvas.SnapToGrid"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <TextBlock Grid.Column="4" Text="Target: ServUO" Foreground="#666" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <TextBlock Grid.Column="5" Foreground="#888" FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="W: {0}  H: {1}">
+                            <Binding Path="Document.CanvasWidth"/>
+                            <Binding Path="Document.CanvasHeight"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <TextBlock Grid.Column="6" Foreground="#e94560" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"
+                           Text="{Binding Canvas.Zoom, StringFormat=Zoom: {0:P0}}"/>
+                <TextBlock Grid.Column="7" Text="{Binding AssetBrowser.TotalAssets, StringFormat=Assets: {0}}"
+                           Foreground="#555" FontSize="10" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding StatusMessage}" Foreground="#8af" FontSize="10" VerticalAlignment="Center"
+                           HorizontalAlignment="Center" Margin="8,0"/>
+                <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Border Background="#5c1a1a" CornerRadius="3" Padding="4,1" Margin="0,0,4,0"
+                            IsVisible="{Binding ErrorCount}">
+                        <TextBlock Text="{Binding ErrorCount, StringFormat=⛔ {0}}" Foreground="#f88" FontSize="9" FontWeight="Bold"/>
+                    </Border>
+                    <Border Background="#3a3a1a" CornerRadius="3" Padding="4,1"
+                            IsVisible="{Binding WarningCount}">
+                        <TextBlock Text="{Binding WarningCount, StringFormat=⚠ {0}}" Foreground="#fd0" FontSize="9" FontWeight="Bold"/>
+                    </Border>
+                    <TextBlock Text="{Binding ProblemCount, StringFormat=Problems: {0}}" Foreground="#555" FontSize="9" VerticalAlignment="Center" Margin="8,0,0,0"
+                               IsVisible="{Binding !ErrorCount}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════ MAIN CONTENT ═══════════ -->
+        <Grid ColumnDefinitions="240,4,*,4,260" RowDefinitions="*,4,220">
+
+            <!-- ── LEFT: Asset Browser ── -->
+            <Border Grid.Column="0" Grid.RowSpan="3" Classes="panel" Margin="4,4,0,4">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Classes="panel-header">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="🎨 Asset Browser" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
+                            <TextBlock Grid.Column="1" Text="{Binding AssetBrowser.TotalAssets, StringFormat={}{0} assets}" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Filter controls -->
+                    <Border DockPanel.Dock="Top" Padding="6,4" Background="#16213e">
+                        <StackPanel Spacing="4">
+                            <TextBox PlaceholderText="Search by ID..." Text="{Binding AssetBrowser.FilterText}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
+                            <Grid ColumnDefinitions="*,Auto,*">
+                                <TextBox PlaceholderText="From" Text="{Binding AssetBrowser.FilterIdStart}" FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
+                                <TextBlock Grid.Column="1" Text=" — " Foreground="#666" VerticalAlignment="Center" Margin="2,0"/>
+                                <TextBox Grid.Column="2" PlaceholderText="To" Text="{Binding AssetBrowser.FilterIdEnd}" FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
+                            </Grid>
+                            <CheckBox Content="Custom only" IsChecked="{Binding AssetBrowser.ShowCustomOnly}" Foreground="#999" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Import + Place buttons -->
+                    <Border DockPanel.Dock="Bottom" Padding="6,4" Background="#16213e">
+                        <StackPanel Spacing="4">
+                            <TextBlock FontSize="10" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,2">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="Showing {0} of {1}">
+                                        <Binding Path="AssetBrowser.Thumbnails.Count"/>
+                                        <Binding Path="AssetBrowser.TotalAssets"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <Button Content="📌 Place on Canvas" HorizontalAlignment="Stretch"
+                                    Command="{Binding AssetBrowser.PlaceSelectedAssetCommand}"
+                                    Background="#0f3460" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"/>
+                            <Button Content="📥 Import Images..." HorizontalAlignment="Stretch" Background="#e94560" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Loading indicator -->
+                    <TextBlock DockPanel.Dock="Top" Text="⏳ Loading assets..."
+                               IsVisible="{Binding AssetBrowser.IsLoading}"
+                               Foreground="#e94560" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Center" Margin="0,8"/>
+
+                    <!-- Thumbnail grid -->
+                    <ScrollViewer>
+                        <ListBox ItemsSource="{Binding AssetBrowser.Thumbnails}"
+                                 SelectedItem="{Binding AssetBrowser.SelectedThumbnail}"
+                                 Background="Transparent" BorderThickness="0"
+                                 DoubleTapped="AssetBrowser_DoubleTapped">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected">
+                                    <Setter Property="Background" Value="#2a1a40"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AssetThumbnail">
+                                    <Border Width="76" Height="88" Background="#16213e" CornerRadius="3" Margin="2" Padding="2"
+                                            BorderBrush="#333" BorderThickness="1"
+                                            ToolTip.Tip="{Binding Label}"
+                                            PointerPressed="AssetThumbnail_PointerPressed">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                                            <Border Width="56" Height="56" Background="#0a0a1a" CornerRadius="2"
+                                                    HorizontalAlignment="Center" ClipToBounds="True">
+                                                <Image Source="{Binding Bitmap}" Stretch="Uniform"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Label}" FontSize="9" Foreground="#e94560" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding SizeLabel}" FontSize="7" Foreground="#555" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Grid.RowSpan="3" Width="4" ResizeDirection="Columns" Background="#1a1a2e"/>
+
+            <!-- ── CENTER: Canvas ── -->
+            <Border Grid.Column="2" Grid.Row="0" Classes="panel" Margin="0,4">
+                <DockPanel>
+                    <!-- Page selector -->
+                    <Border DockPanel.Dock="Top" Classes="panel-header">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Text="📐 Canvas" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                <Button Classes="toolbar-btn" Content="◀" FontSize="10" Padding="4,2"
+                                        Command="{Binding PrevPageCommand}" ToolTip.Tip="Previous Page"/>
+                                <TextBlock Foreground="#e94560" VerticalAlignment="Center" FontWeight="Bold" FontSize="11" Margin="4,0">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="Page {0}">
+                                            <Binding Path="ActivePage"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <Button Classes="toolbar-btn" Content="▶" FontSize="10" Padding="4,2"
+                                        Command="{Binding NextPageCommand}" ToolTip.Tip="Next Page"/>
+                                <Border Width="1" Background="#333" Margin="4,2"/>
+                                <Button Classes="toolbar-btn" Content="＋" FontSize="10" Padding="4,2"
+                                        Command="{Binding AddPageCommand}" ToolTip.Tip="Add Page"/>
+                                <Button Classes="toolbar-btn" Content="✕" FontSize="10" Padding="4,2"
+                                        Command="{Binding RemovePageCommand}" ToolTip.Tip="Remove Page"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Canvas area -->
+                    <controls:GumpCanvasControl x:Name="GumpCanvas" DataContext="{Binding Canvas}">
+                        <controls:GumpCanvasControl.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Cut" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CutSelectedCommand}" InputGesture="Ctrl+X"/>
+                                <MenuItem Header="Copy" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CopySelectedCommand}" InputGesture="Ctrl+C"/>
+                                <MenuItem Header="Paste" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).PasteElementsCommand}" InputGesture="Ctrl+V"/>
+                                <MenuItem Header="Duplicate" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DuplicateSelectedCommand}" InputGesture="Ctrl+D"/>
+                                <Separator/>
+                                <MenuItem Header="Delete" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteSelectedCommand}"/>
+                                <Separator/>
+                                <MenuItem Header="Bring to Front" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BringToFrontCommand}"/>
+                                <MenuItem Header="Send to Back" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SendToBackCommand}"/>
+                                <MenuItem Header="Bring Forward" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BringForwardCommand}"/>
+                                <MenuItem Header="Send Backward" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SendBackwardCommand}"/>
+                                <Separator/>
+                                <MenuItem Header="Group" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GroupSelectedCommand}" InputGesture="Ctrl+G"/>
+                                <MenuItem Header="Ungroup" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UngroupSelectedCommand}" InputGesture="Ctrl+Shift+G"/>
+                                <Separator/>
+                                <MenuItem Header="Select All" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectAllCommand}" InputGesture="Ctrl+A"/>
+                            </ContextMenu>
+                        </controls:GumpCanvasControl.ContextMenu>
+                    </controls:GumpCanvasControl>
+                </DockPanel>
+            </Border>
+
+            <!-- ── RIGHT: Layers + Properties ── -->
+            <Grid Grid.Column="4" Grid.RowSpan="3" RowDefinitions="*,4,*" Margin="0,4,4,4">
+
+                <Border Grid.Row="0" Classes="panel">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Classes="panel-header">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Text="📑 Layers" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+                                    <Button Classes="toolbar-btn" Content="▲" FontSize="10" Padding="4,2"
+                                            Command="{Binding BringForwardCommand}" ToolTip.Tip="Bring Forward"/>
+                                    <Button Classes="toolbar-btn" Content="▼" FontSize="10" Padding="4,2"
+                                            Command="{Binding SendBackwardCommand}" ToolTip.Tip="Send Backward"/>
+                                    <Button Classes="toolbar-btn" Content="🗑" FontSize="10" Padding="4,2"
+                                            Command="{Binding DeleteSelectedCommand}" ToolTip.Tip="Delete Selected"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding Document.Pages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <!-- Page header -->
+                                            <Border Background="#16213e" CornerRadius="3" Margin="4,2,4,0" Padding="8,5">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <TextBlock Text="📄" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding PageNumber, StringFormat=Page {0}}" Foreground="#ccc" FontSize="12" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Elements.Count, StringFormat={}{0} items}" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                            <!-- Element list — clickable -->
+                                            <ListBox ItemsSource="{Binding Elements}" Margin="12,0,4,4"
+                                                     Background="Transparent" BorderThickness="0"
+                                                     SelectionChanged="LayerElement_SelectionChanged">
+                                                <ListBox.Styles>
+                                                    <Style Selector="ListBoxItem">
+                                                        <Setter Property="Padding" Value="0"/>
+                                                        <Setter Property="Margin" Value="0"/>
+                                                        <Setter Property="MinHeight" Value="0"/>
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                    </Style>
+                                                    <Style Selector="ListBoxItem:selected">
+                                                        <Setter Property="Background" Value="#2a1a40"/>
+                                                    </Style>
+                                                </ListBox.Styles>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <Border Background="#0f2040" CornerRadius="2" Margin="0,1" Padding="4,2">
+                                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                                                                    <!-- Visibility toggle -->
+                                                                    <ToggleButton Grid.Column="0" IsChecked="{Binding IsVisible}"
+                                                                                  Background="Transparent" BorderThickness="0"
+                                                                                  Padding="2,0" MinWidth="0" MinHeight="0"
+                                                                                  ToolTip.Tip="Toggle Visibility">
+                                                                        <TextBlock Text="👁" FontSize="10"/>
+                                                                    </ToggleButton>
+                                                                    <!-- Lock toggle -->
+                                                                    <ToggleButton Grid.Column="1" IsChecked="{Binding IsLocked}"
+                                                                                  Background="Transparent" BorderThickness="0"
+                                                                                  Padding="2,0" MinWidth="0" MinHeight="0"
+                                                                                  ToolTip.Tip="Toggle Lock">
+                                                                        <TextBlock Text="🔒" FontSize="9"/>
+                                                                    </ToggleButton>
+                                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0" Spacing="2">
+                                                                        <TextBlock Text="{Binding ElementType, StringFormat={}{0}:}" Foreground="#666" FontSize="10" VerticalAlignment="Center"/>
+                                                                        <TextBox Text="{Binding Name}" FontSize="10" Foreground="#aaa"
+                                                                                 Background="Transparent" BorderThickness="0"
+                                                                                 Padding="2,0" MinWidth="40" MinHeight="0"
+                                                                                 VerticalAlignment="Center"
+                                                                                 ToolTip.Tip="Double-click to rename"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Grid.Column="3" Foreground="#555" FontSize="9" VerticalAlignment="Center" Margin="4,0,0,0">
+                                                                        <TextBlock.Text>
+                                                                            <MultiBinding StringFormat="{}{0},{1}">
+                                                                                <Binding Path="X"/>
+                                                                                <Binding Path="Y"/>
+                                                                            </MultiBinding>
+                                                                        </TextBlock.Text>
+                                                                    </TextBlock>
+                                                                    <!-- Color tag dot -->
+                                                                    <Border Grid.Column="4" Width="8" Height="8" CornerRadius="4" Margin="4,0,2,0"
+                                                                            VerticalAlignment="Center"
+                                                                            Background="{Binding ColorTag, Converter={x:Static conv:ColorTagToBrushConverter.Instance}}"
+                                                                            IsVisible="{Binding ColorTag, Converter={x:Static conv:StringNotEmptyConverter.Instance}}"
+                                                                            ToolTip.Tip="{Binding ColorTag}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                            <!-- Show group children indented (only visible for GumpGroup items) -->
+                                                            <ItemsControl ItemsSource="{ReflectionBinding Children}" Margin="16,0,0,0"
+                                                                          IsVisible="{ReflectionBinding Children.Count, FallbackValue=False, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="models:GumpElement">
+                                                                        <Border Background="#0a1830" CornerRadius="2" Margin="0,1" Padding="4,2">
+                                                                            <TextBlock Foreground="#777" FontSize="9" VerticalAlignment="Center">
+                                                                                <TextBlock.Text>
+                                                                                    <MultiBinding StringFormat="  ↳ {0}: {1} ({2},{3})">
+                                                                                        <Binding Path="ElementType"/>
+                                                                                        <Binding Path="Name"/>
+                                                                                        <Binding Path="X"/>
+                                                                                        <Binding Path="Y"/>
+                                                                                    </MultiBinding>
+                                                                                </TextBlock.Text>
+                                                                            </TextBlock>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <GridSplitter Grid.Row="1" Height="4" ResizeDirection="Rows" Background="#1a1a2e"/>
+
+                <!-- Properties Panel -->
+                <Border Grid.Row="2" Classes="panel">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Classes="panel-header">
+                            <TextBlock Text="⚙ Properties" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
+                        </Border>
+                        <ScrollViewer Padding="8">
+                            <StackPanel Spacing="6">
+                                <!-- Selected element properties -->
+                                <StackPanel IsVisible="{Binding Selection.HasSingleSelection}" Spacing="4">
+                                    <TextBlock Text="Selected Element" FontWeight="Bold" Foreground="#e94560" FontSize="12"/>
+                                    <Grid ColumnDefinitions="65,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" >
+                                        <TextBlock Grid.Row="0" Text="Type:" Foreground="#888" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Selection.PrimarySelection.ElementType}" Foreground="#e94560" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="1" Text="Name:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Selection.PrimarySelection.Name}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                        <TextBlock Grid.Row="2" Text="X:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"
+                                                   controls:DragScrubBehavior.Target="{Binding Selection.PrimarySelection}"
+                                                   controls:DragScrubBehavior.Property="X" ToolTip.Tip="Drag to scrub X"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Selection.PrimarySelection.X}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                        <TextBlock Grid.Row="3" Text="Y:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"
+                                                   controls:DragScrubBehavior.Target="{Binding Selection.PrimarySelection}"
+                                                   controls:DragScrubBehavior.Property="Y" ToolTip.Tip="Drag to scrub Y"/>
+                                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Selection.PrimarySelection.Y}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                        <TextBlock Grid.Row="4" Text="Width:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"
+                                                   controls:DragScrubBehavior.Target="{Binding Selection.PrimarySelection}"
+                                                   controls:DragScrubBehavior.Property="Width" ToolTip.Tip="Drag to scrub Width"/>
+                                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Selection.PrimarySelection.Width}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                        <TextBlock Grid.Row="5" Text="Height:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"
+                                                   controls:DragScrubBehavior.Target="{Binding Selection.PrimarySelection}"
+                                                   controls:DragScrubBehavior.Property="Height" ToolTip.Tip="Drag to scrub Height"/>
+                                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Selection.PrimarySelection.Height}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+                                    </Grid>
+
+                                    <!-- Color tag picker -->
+                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,6,0,0">
+                                        <TextBlock Text="Tag:" Foreground="#888" FontSize="10" VerticalAlignment="Center"/>
+                                        <Border Width="10" Height="10" CornerRadius="5"
+                                                Background="{Binding Selection.PrimarySelection.ColorTag, Converter={x:Static conv:ColorTagToBrushConverter.Instance}}"
+                                                VerticalAlignment="Center"/>
+                                        <ComboBox SelectedItem="{Binding Selection.PrimarySelection.ColorTag}"
+                                                  FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"
+                                                  MinWidth="80" MaxHeight="24" Padding="4,2">
+                                            <ComboBoxItem Content="None" Tag=""/>
+                                            <ComboBoxItem Content="🔴 Red" Tag="#e94560"/>
+                                            <ComboBoxItem Content="🟢 Green" Tag="#2ed573"/>
+                                            <ComboBoxItem Content="🔵 Blue" Tag="#54a0ff"/>
+                                            <ComboBoxItem Content="🟡 Yellow" Tag="#ffa502"/>
+                                            <ComboBoxItem Content="🟣 Purple" Tag="#a55eea"/>
+                                            <ComboBoxItem Content="⚪ White" Tag="#ffffff"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- Type-specific properties -->
+                                    <TextBlock Text="Type Properties" FontWeight="Bold" Foreground="#a0a" FontSize="11" Margin="0,6,0,2"/>
+                                    <ItemsControl ItemsSource="{Binding Properties.ElementProperties}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="65,*" Margin="0,2">
+                                                    <TextBlock Text="{Binding Label}" Foreground="#888" FontSize="10" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="1" Text="{Binding Value, Mode=TwoWay}" FontSize="10"
+                                                             Background="#0a0a1a" Foreground="#e94560" BorderBrush="#333"
+                                                             FontFamily="Consolas, monospace"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Border Height="1" Background="#333" Margin="0,4"/>
+                                </StackPanel>
+
+                                <!-- Document properties -->
+                                <TextBlock Text="Document Settings" FontWeight="Bold" Foreground="#ccc" FontSize="12"/>
+                                <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" >
+                                    <TextBlock Grid.Row="0" Text="Class:" Foreground="#888" VerticalAlignment="Center" FontSize="11"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Document.GumpClassName}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
+
+                                    <TextBlock Grid.Row="1" Text="Namespace:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Document.Namespace}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                    <TextBlock Grid.Row="2" Text="Gump X:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Document.GumpX}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                    <TextBlock Grid.Row="3" Text="Gump Y:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Document.GumpY}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                    <TextBlock Grid.Row="4" Text="Width:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Document.CanvasWidth}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+
+                                    <TextBlock Grid.Row="5" Text="Height:" Foreground="#888" VerticalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Document.CanvasHeight}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333" Margin="0,4,0,0"/>
+                                </Grid>
+
+                                <Border Height="1" Background="#333" Margin="0,8"/>
+
+                                <TextBlock Text="Behavior Flags" FontWeight="Bold" Foreground="#ccc" FontSize="12"/>
+                                <CheckBox Content="Draggable" IsChecked="{Binding Document.IsDraggable}" Foreground="#999" FontSize="11"/>
+                                <CheckBox Content="Closable" IsChecked="{Binding Document.IsClosable}" Foreground="#999" FontSize="11"/>
+                                <CheckBox Content="Disposable" IsChecked="{Binding Document.IsDisposable}" Foreground="#999" FontSize="11"/>
+                                <CheckBox Content="Resizable" IsChecked="{Binding Document.IsResizable}" Foreground="#999" FontSize="11"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <GridSplitter Grid.Column="2" Grid.Row="1" Height="4" ResizeDirection="Rows" Background="#1a1a2e"/>
+
+            <!-- ── BOTTOM: Code Panel ── -->
+            <Border Grid.Column="2" Grid.Row="2" Classes="panel" Margin="0,0,0,4">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Classes="panel-header">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Text="💻 Code" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                <Button Classes="toolbar-btn" Content="📋 Copy" FontSize="11"
+                                        Click="CopyCode_Click" ToolTip.Tip="Copy code to clipboard"/>
+                                <Button Classes="toolbar-btn" Content="▶ Apply" FontSize="11"
+                                        Command="{Binding ApplyCodeCommand}"
+                                        ToolTip.Tip="Parse code and update canvas" Background="#0f3460"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Error bar (visible when parse errors exist) -->
+                    <Border DockPanel.Dock="Bottom"
+                            IsVisible="{Binding CodePanel.ParseErrors, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            Padding="6,4" Background="#5c1a1a">
+                        <TextBlock Text="{Binding CodePanel.ParseErrors}" Foreground="#f88" FontSize="10" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <TabControl Background="Transparent">
+                        <TabControl.Styles>
+                            <Style Selector="TabItem">
+                                <Setter Property="Foreground" Value="#888"/>
+                                <Setter Property="FontSize" Value="11"/>
+                            </Style>
+                            <Style Selector="TabItem:selected">
+                                <Setter Property="Foreground" Value="#e94560"/>
+                            </Style>
+                        </TabControl.Styles>
+                        <TabItem Header="ServUO">
+                            <ae:TextEditor Name="ServUoEditor"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Padding="8"
+                                           Background="#0a0a1a"
+                                           ShowLineNumbers="True"
+                                           HorizontalScrollBarVisibility="Auto"
+                                           VerticalScrollBarVisibility="Auto"/>
+                        </TabItem>
+                        <TabItem Header="RunUO">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                                <TextBox Text="{Binding RunUoCode, Mode=OneWay}" IsReadOnly="True"
+                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                         FontSize="12" Foreground="#c8d6e5" Padding="8"
+                                         Background="#0a0a1a" TextWrapping="NoWrap"
+                                         AcceptsReturn="True" BorderThickness="0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="ModernUO">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                                <TextBox Text="{Binding ModernUoCode, Mode=OneWay}" IsReadOnly="True"
+                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                         FontSize="12" Foreground="#c8d6e5" Padding="8"
+                                         Background="#0a0a1a" TextWrapping="NoWrap"
+                                         AcceptsReturn="True" BorderThickness="0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="Sphere">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                                <TextBox Text="{Binding SphereCode, Mode=OneWay}" IsReadOnly="True"
+                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                         FontSize="12" Foreground="#aad6a5" Padding="8"
+                                         Background="#0a0a1a" TextWrapping="NoWrap"
+                                         AcceptsReturn="True" BorderThickness="0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="ClassicAssist">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                                <TextBox Text="{Binding ClassicAssistCode, Mode=OneWay}" IsReadOnly="True"
+                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                         FontSize="12" Foreground="#a5c8d6" Padding="8"
+                                         Background="#0a0a1a" TextWrapping="NoWrap"
+                                         AcceptsReturn="True" BorderThickness="0"/>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="⚠ Problems"/>
+                                    <Border Background="#3a3a1a" CornerRadius="6" Padding="4,0" IsVisible="{Binding ProblemCount}">
+                                        <TextBlock Text="{Binding ProblemCount}" Foreground="#fd0" FontSize="9" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <ScrollViewer>
+                                <ItemsControl ItemsSource="{Binding Problems}" Margin="4">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="services:GumpProblem">
+                                            <Border Margin="0,1" Padding="6,3" CornerRadius="3"
+                                                    Background="#0a0a1a">
+                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                                                    <TextBlock Grid.Column="0" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                               Text="{Binding Severity}" Foreground="#fd0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Code}" Foreground="#666" FontSize="9" FontFamily="Cascadia Code,Consolas,monospace" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="#ccc" FontSize="10" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding ElementName}" Foreground="#e94560" FontSize="9" VerticalAlignment="Center" Margin="8,0"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding Page, StringFormat=P{0}}" Foreground="#555" FontSize="9" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

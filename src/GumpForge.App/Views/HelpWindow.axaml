@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GumpForge.App.Views.HelpWindow"
+        Title="GumpForge — Quick Start Guide"
+        Width="620" Height="680"
+        WindowStartupLocation="CenterOwner"
+        Background="#0f1a2e">
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#16213e" Padding="16,12">
+            <TextBlock Text="⚒️ GumpForge Quick Start Guide" FontSize="20" FontWeight="Bold" Foreground="#e94560"/>
+        </Border>
+
+        <!-- Footer -->
+        <Border DockPanel.Dock="Bottom" Padding="16,8" Background="#16213e">
+            <Button Content="Close" HorizontalAlignment="Right" Padding="24,6"
+                    Click="Close_Click"
+                    Background="#e94560" Foreground="White" FontWeight="Bold" CornerRadius="4"/>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Padding="20">
+            <StackPanel Spacing="16">
+                <!-- Getting Started -->
+                <TextBlock Text="Getting Started" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="1. File > Open Client Folder — Select your UO client data directory (containing gumpart.mul/gumpidx.mul or gumpartLegacyMUL.uop). GumpForge auto-detects MUL and UOP formats.&#x0a;&#x0a;2. The Asset Browser (left panel) loads all gump art thumbnails. Double-click or drag an asset to place it on the canvas.&#x0a;&#x0a;3. Use File > New to start a fresh document, or File > Open to load a .gumpproj project file."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Canvas -->
+                <TextBlock Text="Canvas Editing" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="• Click elements to select them. Drag to move.&#x0a;• Hold Shift to add to selection (multi-select).&#x0a;• Use resize handles on corners/edges to resize.&#x0a;• Ctrl+C / Ctrl+V — Copy / Paste elements.&#x0a;• Delete — Remove selected elements.&#x0a;• Ctrl+Z / Ctrl+Y — Undo / Redo.&#x0a;• Mouse wheel — Zoom in/out.&#x0a;• Middle-click drag — Pan the canvas.&#x0a;• Hold Alt — Bypass snap-to-grid while dragging."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Toolbar -->
+                <TextBlock Text="Toolbar Actions" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="• + Bg / + Btn / + Lbl / + Img — Add new elements.&#x0a;• Align L/R/T/B — Align selected elements.&#x0a;• Dist H/V — Distribute elements evenly.&#x0a;• ⊞ Grid — Toggle grid overlay.&#x0a;• 📏 Snap — Toggle snap-to-grid.&#x0a;• 🗙 Guides — Clear ruler guide lines.&#x0a;• 📸 PNG (F5) — Export canvas as PNG image.&#x0a;• 📦 MUL (F6) — Export to gumpart.mul at a gump ID.&#x0a;• 🖼️ Import — Import a PNG as custom gump art."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Guide Lines -->
+                <TextBlock Text="Guide Lines" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="• Double-click the top ruler to add a vertical guide.&#x0a;• Double-click the left ruler to add a horizontal guide.&#x0a;• Right-click a ruler to remove the nearest guide.&#x0a;• Guides appear as magenta dashed lines."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Code Panel -->
+                <TextBlock Text="Code Generation" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="The Code panel (bottom) generates C# code for 5 server emulators:&#x0a;• ServUO (editable) — Edit code and click Apply to update the canvas.&#x0a;• RunUO, ModernUO, Sphere, ClassicAssist (read-only).&#x0a;• 📋 Copy — Copy code to clipboard.&#x0a;• ▶ Apply — Parse edited code and rebuild the canvas.&#x0a;• ⚠ Problems — Shows validation issues (duplicate IDs, missing art, etc.)"/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Properties -->
+                <TextBlock Text="Properties Panel" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="Select an element to edit its properties in the right panel:&#x0a;• Position (X, Y), Size (W, H) — Click + drag labels to scrub values.&#x0a;• Gump ID, Hue, Button IDs — Type-specific fields.&#x0a;• Color Tags — Assign colors for visual organization.&#x0a;• Element names — Rename via the Layers panel."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Keyboard Shortcuts -->
+                <TextBlock Text="Keyboard Shortcuts" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" FontFamily="Cascadia Code,Consolas,monospace"
+                           Text="Ctrl+Z      Undo&#x0a;Ctrl+Y      Redo&#x0a;Ctrl+C      Copy&#x0a;Ctrl+V      Paste&#x0a;Delete      Delete selected&#x0a;F5          Export PNG&#x0a;F6          Export MUL&#x0a;Alt+Drag    Bypass snap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

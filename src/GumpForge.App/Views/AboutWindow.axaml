@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GumpForge.App.Views.AboutWindow"
+        Title="About GumpForge"
+        Width="460" Height="420"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#0f1a2e">
+    <Border Padding="24">
+        <StackPanel Spacing="16" HorizontalAlignment="Center">
+            <!-- Logo / Title -->
+            <TextBlock Text="⚒️ GumpForge" FontSize="32" FontWeight="Bold"
+                       Foreground="#e94560" HorizontalAlignment="Center"/>
+            <TextBlock Text="Gump Editor for Ultima Online" FontSize="14"
+                       Foreground="#8af" HorizontalAlignment="Center"/>
+            <TextBlock Text="Version 1.0.0" FontSize="12"
+                       Foreground="#888" HorizontalAlignment="Center"/>
+
+            <Border Height="1" Background="#333" Margin="0,8"/>
+
+            <!-- Description -->
+            <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" TextAlignment="Center" MaxWidth="380"
+                       Text="GumpForge is a visual designer for Ultima Online Gump interfaces. It reads and writes legacy MUL and modern UOP client data, generates code for ServUO, RunUO, ModernUO, Sphere, and ClassicAssist, and provides a full-featured canvas editor with hue rendering, font metrics, and localized text preview."/>
+
+            <Border Height="1" Background="#333" Margin="0,8"/>
+
+            <!-- Credits -->
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+                <TextBlock Text="Built with Avalonia UI" Foreground="#666" FontSize="11" HorizontalAlignment="Center"/>
+                <TextBlock Text="License: CC BY-NC 4.0" Foreground="#666" FontSize="11" HorizontalAlignment="Center"/>
+                <TextBlock Text="UO format specs: Ultima SDK (MIT)" Foreground="#666" FontSize="11" HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <Border Height="1" Background="#333" Margin="0,8"/>
+
+            <!-- Close button -->
+            <Button Content="Close" HorizontalAlignment="Center" Padding="24,8"
+                    Click="Close_Click"
+                    Background="#e94560" Foreground="White" FontWeight="Bold"
+                    CornerRadius="4"/>
+        </StackPanel>
+    </Border>
+</Window>
