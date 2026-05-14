@@ -257,7 +257,8 @@
         </Border>
 
         <!-- ═══════════ MAIN CONTENT ═══════════ -->
-        <Grid ColumnDefinitions="240,4,*,4,260" RowDefinitions="*,4,220">
+        <!-- PR #1 fix (AkaMagician): proportional row heights instead of fixed 220px bottom -->
+        <Grid ColumnDefinitions="240,4,*,4,260" RowDefinitions="2*,4,*">
 
             <!-- ── LEFT: Asset Browser ── -->
             <Border Grid.Column="0" Grid.RowSpan="3" Classes="panel" Margin="4,4,0,4">
@@ -627,7 +628,8 @@
                         <Border DockPanel.Dock="Top" Classes="panel-header">
                             <TextBlock Text="⚙ Properties" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
                         </Border>
-                        <ScrollViewer Padding="8">
+                        <!-- PR #1 fix (AkaMagician): auto scrollbar visibility -->
+                        <ScrollViewer Padding="8" VerticalScrollBarVisibility="Auto">
                             <StackPanel Spacing="6">
                                 <!-- Selected element properties -->
                                 <StackPanel IsVisible="{Binding Selection.HasSingleSelection}" Spacing="4">
@@ -726,6 +728,9 @@
                                 <CheckBox Content="Closable" IsChecked="{Binding Document.IsClosable}" Foreground="#999" FontSize="11"/>
                                 <CheckBox Content="Disposable" IsChecked="{Binding Document.IsDisposable}" Foreground="#999" FontSize="11"/>
                                 <CheckBox Content="Resizable" IsChecked="{Binding Document.IsResizable}" Foreground="#999" FontSize="11"/>
+
+                                <!-- PR #1 fix (AkaMagician): spacer ensures last controls scroll into view -->
+                                <Border Height="28" Background="Transparent"/>
                             </StackPanel>
                         </ScrollViewer>
                     </DockPanel>

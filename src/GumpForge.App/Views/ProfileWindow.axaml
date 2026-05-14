@@ -92,8 +92,13 @@
                 </TabItem>
 
                 <!-- Create New Profile Tab -->
+                <!-- PR #1 fix (AkaMagician): DockPanel + ScrollViewer prevents overflow -->
                 <TabItem Header="✨ New Profile" FontSize="13">
-                    <StackPanel Margin="0,12,0,0" Spacing="12">
+                    <DockPanel Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Bottom" Classes="accent" Content="Create Profile" Click="CreateProfile_Click"
+                                HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="12">
                         <StackPanel Spacing="4">
                             <TextBlock Text="Profile Name" FontWeight="Bold"/>
                             <TextBox Name="ProfileNameInput" Text="My Shard" PlaceholderText="e.g. ServUO Dev"/>
@@ -120,9 +125,9 @@
                             <TextBlock Text="Default: %AppData%/GumpForge/Profiles/" FontSize="11" Foreground="#666"/>
                         </StackPanel>
 
-                        <Button Classes="accent" Content="Create Profile" Click="CreateProfile_Click"
-                                HorizontalAlignment="Right" Margin="0,8,0,0"/>
-                    </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
                 </TabItem>
             </TabControl>
         </DockPanel>
