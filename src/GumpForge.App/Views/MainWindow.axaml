@@ -889,6 +889,57 @@
                                 </ItemsControl>
                             </ScrollViewer>
                         </TabItem>
+
+                        <!-- Script Analyzer tab -->
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="📜 Script Analyzer"/>
+                                    <Border Name="ScriptCountBadge" Background="#1a3a5a" CornerRadius="6" Padding="4,0" IsVisible="False">
+                                        <TextBlock Name="ScriptCountLabel" Text="0" Foreground="#5bc0de" FontSize="9" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Grid ColumnDefinitions="*,4,2*">
+                                <!-- Left: Script list -->
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="4">
+                                        <Button Content="📂 Open Server Scripts Folder..." Click="OpenScriptsFolder_Click"
+                                                Background="#0f3460" Foreground="White" FontSize="11"
+                                                FontWeight="Bold" CornerRadius="3" Padding="8,4"
+                                                HorizontalAlignment="Stretch"/>
+                                        <TextBlock Name="ScriptScanStatus" Foreground="#666" FontSize="9"/>
+                                    </StackPanel>
+                                    <ListBox Name="ScriptFileList" Background="#0a0a1a" BorderBrush="#1a1a40"
+                                             BorderThickness="1" Margin="4,0,0,4"
+                                             SelectionChanged="ScriptFile_SelectionChanged">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="Padding" Value="6,3"/>
+                                                <Setter Property="FontSize" Value="10"/>
+                                            </Style>
+                                            <Style Selector="ListBoxItem:selected">
+                                                <Setter Property="Background" Value="#2a1a40"/>
+                                            </Style>
+                                        </ListBox.Styles>
+                                    </ListBox>
+                                </DockPanel>
+
+                                <GridSplitter Grid.Column="1" Background="#1a1a2e" ResizeDirection="Columns"/>
+
+                                <!-- Right: Analysis details -->
+                                <DockPanel Grid.Column="2">
+                                    <TextBlock DockPanel.Dock="Top" Name="ScriptAnalysisHeader"
+                                               Text="Select a script to analyze" FontWeight="Bold" FontSize="12"
+                                               Foreground="#888" Margin="6,4"/>
+                                    <ScrollViewer Margin="4,0,4,4">
+                                        <StackPanel Name="ScriptAnalysisPanel" Spacing="8" Margin="4">
+                                            <!-- Analysis content built in code-behind -->
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
                     </TabControl>
                 </DockPanel>
             </Border>

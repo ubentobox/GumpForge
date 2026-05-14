@@ -1,3 +1,49 @@
+# GumpForge Changelog
+
+---
+
+## v2.1 — Asset Intelligence & Script Analyzer
+**Release Date: May 14, 2026**
+
+### 🔍 Changed/New Asset Highlighting (Phase A)
+- **SHA256 hash comparison** detects assets that are **NEW** or **CHANGED** since the last session
+- Asset hashes persist in the shard profile for cross-session comparison
+- Green badge for NEW assets, orange badge for CHANGED assets on thumbnails
+- **"Changed" checkbox** filter to show only modified assets in the Asset Browser
+
+### 📝 Display Name on Canvas (Phase B)
+- Placing a named asset on the canvas now uses the format `"Skirt (0xEECE)"` instead of `"Gump_0xEECE"`
+- Browser thumbnails also display `"Name (0xHEX)"` format for named assets
+
+### 🏷️ Multi-Tag Filtering (Phase C)
+- **Multi-tag selector** replaces the old single tag text box
+- Type-to-search tag input with Enter-to-add
+- Active filter tags displayed as removable badges
+- **AND/OR radio toggle** — AND requires all tags, OR requires any tag
+- **"Untagged" checkbox** filter to find assets with no tags assigned
+- Tag badge clicks in the metadata panel now add to the multi-tag filter
+
+### 📁 Smart Collections (Phase D)
+- **Auto-include tags** — Assign tags to a collection; all assets with matching tags auto-join
+- **ExcludedAssetIds** — Manually removed assets stay removed even if they have the right tags
+- Collection manager shows `"X manual + Y auto = Z total"` member counts
+- Auto-include tag badges with add/remove in the Collections tab
+
+### 📜 Script Analyzer (Phase E — Proof of Concept)
+- **New "Script Analyzer" tab** on the Code panel — analyze server-side gump scripts
+- **ScriptIndexer** — Scans a server's Scripts directory for `.cs` files containing gump-related code
+- **RoslynGumpAnalyzer** — Uses Roslyn syntax analysis to extract:
+  - Class hierarchy (name, namespace, base class)
+  - Constructor parameters as test variables (with type-aware input controls)
+  - All gump API calls (`AddImage`, `AddButton`, `AddLabel`, etc.) with line numbers
+  - Conditional branches (`if/else`, `for`, `foreach`) with element counts per branch
+  - Cross-file references to other gump classes and scripts
+- **Dynamic args detection** — Elements with computed arguments are flagged with ⚡ badges
+- **Condition badges** — Each element shows which `if` condition controls its rendering
+- **Variable test panel** — Auto-discovered constructor params shown as editable inputs (CheckBox for bool, NumericUpDown for int, TextBox for strings)
+
+---
+
 # GumpForge v2.0 — Release Notes
 
 **Visual Gump Editor for Ultima Online**

@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -22,6 +22,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GumpForge.Formats.Tests", "tests\GumpForge.Formats.Tests\GumpForge.Formats.Tests.csproj", "{47DAE5B6-649A-49EC-9082-6DA4744D2504}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GumpForge.Generators.Tests", "tests\GumpForge.Generators.Tests\GumpForge.Generators.Tests.csproj", "{463B0EDD-17F8-4640-B548-80ADD1495FB1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GumpForge.ScriptAnalysis", "src\GumpForge.ScriptAnalysis\GumpForge.ScriptAnalysis.csproj", "{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -141,6 +143,18 @@ Global
 		{463B0EDD-17F8-4640-B548-80ADD1495FB1}.Release|x64.Build.0 = Release|Any CPU
 		{463B0EDD-17F8-4640-B548-80ADD1495FB1}.Release|x86.ActiveCfg = Release|Any CPU
 		{463B0EDD-17F8-4640-B548-80ADD1495FB1}.Release|x86.Build.0 = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|x64.Build.0 = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Debug|x86.Build.0 = Debug|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|x64.ActiveCfg = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|x64.Build.0 = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|x86.ActiveCfg = Release|Any CPU
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -155,5 +169,6 @@ Global
 		{B1C67AD2-8990-49BE-AAC7-BF5D4CC31AB0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{47DAE5B6-649A-49EC-9082-6DA4744D2504} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{463B0EDD-17F8-4640-B548-80ADD1495FB1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{32F02AE2-8B1F-4693-B9C8-F98E7F12CD8F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

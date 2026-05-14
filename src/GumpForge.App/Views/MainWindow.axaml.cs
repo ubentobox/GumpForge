@@ -885,4 +885,373 @@ public partial class MainWindow : Window
             vm.StatusMessage = $"✅ Tag \"{tagName}\" removed from {vm.AssetBrowser.SelectedThumbnails.Count} assets";
         }
     }
+
+    // ── Script Analyzer ──────────────────────────────────────
+
+    private GumpForge.ScriptAnalysis.ScriptIndexer? _scriptIndexer;
+    private List<GumpForge.ScriptAnalysis.IndexedScript> _indexedScripts = [];
+    private GumpForge.ScriptAnalysis.RoslynGumpAnalyzer _gumpAnalyzer = new();
+
+    /// <summary>
+    /// Opens a folder picker for the server's Scripts directory and scans for gump scripts.
+    /// </summary>
+    private async void OpenScriptsFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select Server Scripts Folder",
+            AllowMultiple = false
+        });
+
+        if (folders.Count == 0) return;
+
+        var path = folders[0].Path.LocalPath;
+        var statusLabel = this.FindControl<TextBlock>("ScriptScanStatus");
+        var scriptList = this.FindControl<ListBox>("ScriptFileList");
+
+        if (statusLabel is not null) statusLabel.Text = "Scanning...";
+
+        _scriptIndexer = new GumpForge.ScriptAnalysis.ScriptIndexer();
+
+        var progress = new Progress<(int scanned, int found)>(p =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (statusLabel is not null)
+                    statusLabel.Text = $"Scanned {p.scanned} files, found {p.found} gump scripts...";
+            });
+        });
+
+        _indexedScripts = await _scriptIndexer.ScanDirectoryAsync(path, progress);
+
+        if (statusLabel is not null)
+            statusLabel.Text = $"✅ Found {_indexedScripts.Count} gump scripts in {Path.GetFileName(path)}";
+
+        // Update tab badge
+        var badge = this.FindControl<Border>("ScriptCountBadge");
+        var label = this.FindControl<TextBlock>("ScriptCountLabel");
+        if (badge is not null && label is not null)
+        {
+            badge.IsVisible = _indexedScripts.Count > 0;
+            label.Text = _indexedScripts.Count.ToString();
+        }
+
+        // Populate the list
+        if (scriptList is not null)
+        {
+            scriptList.ItemsSource = _indexedScripts.Select(s => s.DisplayName).ToList();
+        }
+
+        // Store scripts path on profile
+        if (DataContext is MainWindowViewModel vm && vm.ActiveProfile is not null)
+        {
+            // Could store this path on profile for re-use
+        }
+    }
+
+    /// <summary>
+    /// When a script file is selected, run Roslyn analysis and display the results.
+    /// </summary>
+    private void ScriptFile_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ListBox lb || lb.SelectedIndex < 0) return;
+        if (lb.SelectedIndex >= _indexedScripts.Count) return;
+
+        var script = _indexedScripts[lb.SelectedIndex];
+        var header = this.FindControl<TextBlock>("ScriptAnalysisHeader");
+        var panel = this.FindControl<StackPanel>("ScriptAnalysisPanel");
+
+        if (header is null || panel is null) return;
+
+        header.Text = $"Analyzing: {script.FileName}";
+        panel.Children.Clear();
+
+        try
+        {
+            var gumps = _gumpAnalyzer.AnalyzeFile(script.FilePath);
+
+            if (gumps.Count == 0)
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "No gump classes found in this file.\nThis file may reference gump APIs without defining a class.",
+                    Foreground = Avalonia.Media.Brushes.Gray,
+                    FontSize = 11,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                });
+                return;
+            }
+
+            foreach (var gump in gumps)
+            {
+                BuildGumpAnalysisUI(panel, gump);
+            }
+
+            header.Text = $"📜 {script.FileName} — {gumps.Count} gump class(es)";
+        }
+        catch (Exception ex)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = $"Analysis error: {ex.Message}",
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#f66")),
+                FontSize = 11,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+            });
+        }
+    }
+
+    /// <summary>
+    /// Builds the analysis detail UI for a single discovered gump class.
+    /// </summary>
+    private void BuildGumpAnalysisUI(StackPanel parent, GumpForge.ScriptAnalysis.DiscoveredGump gump)
+    {
+        // ── Class header ──
+        var classHeader = new Border
+        {
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#16213e")),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 6),
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        var headerStack = new StackPanel { Spacing = 2 };
+        headerStack.Children.Add(new TextBlock
+        {
+            Text = $"class {gump.ClassName} : {gump.BaseClass}",
+            FontSize = 14, FontWeight = Avalonia.Media.FontWeight.Bold,
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e94560"))
+        });
+        if (!string.IsNullOrEmpty(gump.Namespace))
+        {
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = $"namespace {gump.Namespace}",
+                FontSize = 10, Foreground = Avalonia.Media.Brushes.Gray
+            });
+        }
+        headerStack.Children.Add(new TextBlock
+        {
+            Text = $"{gump.ElementCount} gump elements | {gump.Conditionals.Count} conditionals | {gump.Variables.Count} parameters",
+            FontSize = 10, Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#5bc0de"))
+        });
+        classHeader.Child = headerStack;
+        parent.Children.Add(classHeader);
+
+        // ── Test Variables ──
+        if (gump.Variables.Count > 0)
+        {
+            AddSectionHeader(parent, "🔧 Test Variables (Constructor Parameters)");
+            foreach (var v in gump.Variables)
+            {
+                var varPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 6 };
+                varPanel.Children.Add(new TextBlock
+                {
+                    Text = v.TypeName,
+                    FontSize = 10,
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#5bc0de")),
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
+                });
+                varPanel.Children.Add(new TextBlock
+                {
+                    Text = v.Name,
+                    FontSize = 10,
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#aad6a5")),
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
+                });
+
+                // Test input control
+                switch (v.Kind)
+                {
+                    case GumpForge.ScriptAnalysis.VariableKind.Boolean:
+                        var cb = new CheckBox
+                        {
+                            Content = $"= {v.DefaultValue}",
+                            IsChecked = v.DefaultValue == "true",
+                            FontSize = 10,
+                            Foreground = Avalonia.Media.Brushes.Gray
+                        };
+                        varPanel.Children.Add(cb);
+                        break;
+
+                    case GumpForge.ScriptAnalysis.VariableKind.Integer:
+                        var numBox = new TextBox
+                        {
+                            Text = v.DefaultValue,
+                            Width = 60, FontSize = 10,
+                            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0a0a1a")),
+                            Foreground = Avalonia.Media.Brushes.White,
+                            BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#333"))
+                        };
+                        varPanel.Children.Add(numBox);
+                        break;
+
+                    default:
+                        var txtBox = new TextBox
+                        {
+                            Text = v.DefaultValue,
+                            Width = 120, FontSize = 10,
+                            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0a0a1a")),
+                            Foreground = Avalonia.Media.Brushes.White,
+                            BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#333"))
+                        };
+                        varPanel.Children.Add(txtBox);
+                        break;
+                }
+
+                parent.Children.Add(varPanel);
+            }
+        }
+
+        // ── Gump API Calls ──
+        if (gump.GumpCalls.Count > 0)
+        {
+            AddSectionHeader(parent, $"📐 Gump Elements ({gump.GumpCalls.Count})");
+            foreach (var call in gump.GumpCalls.Take(50)) // Cap at 50 for UI performance
+            {
+                var callPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 4 };
+
+                // Line number
+                callPanel.Children.Add(new TextBlock
+                {
+                    Text = $"L{call.LineNumber}",
+                    FontSize = 9, Width = 35,
+                    Foreground = Avalonia.Media.Brushes.Gray,
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
+                });
+
+                // Method name
+                callPanel.Children.Add(new TextBlock
+                {
+                    Text = call.MethodName,
+                    FontSize = 10,
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e94560")),
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
+                });
+
+                // Arguments
+                callPanel.Children.Add(new TextBlock
+                {
+                    Text = $"({string.Join(", ", call.Arguments)})",
+                    FontSize = 10,
+                    Foreground = Avalonia.Media.Brushes.White,
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace"),
+                    TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+                    MaxWidth = 400
+                });
+
+                // Condition badge
+                if (call.ConditionExpression is not null)
+                {
+                    callPanel.Children.Add(new Border
+                    {
+                        Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#3a2a1a")),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(4, 1),
+                        Margin = new Thickness(4, 0, 0, 0),
+                        Child = new TextBlock
+                        {
+                            Text = $"if {call.ConditionExpression}",
+                            FontSize = 8,
+                            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e9a045")),
+                            TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+                            MaxWidth = 200
+                        }
+                    });
+                }
+
+                // Dynamic args badge
+                if (call.HasDynamicArgs)
+                {
+                    callPanel.Children.Add(new Border
+                    {
+                        Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#2a1a3a")),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(4, 1),
+                        Child = new TextBlock
+                        {
+                            Text = "⚡ dynamic",
+                            FontSize = 8,
+                            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#a5c8d6"))
+                        }
+                    });
+                }
+
+                parent.Children.Add(callPanel);
+            }
+
+            if (gump.GumpCalls.Count > 50)
+            {
+                parent.Children.Add(new TextBlock
+                {
+                    Text = $"... and {gump.GumpCalls.Count - 50} more elements",
+                    FontSize = 10, Foreground = Avalonia.Media.Brushes.Gray
+                });
+            }
+        }
+
+        // ── Conditional Branches ──
+        if (gump.Conditionals.Count > 0)
+        {
+            AddSectionHeader(parent, $"🔀 Conditional Branches ({gump.Conditionals.Count})");
+            foreach (var cond in gump.Conditionals)
+            {
+                var condPanel = new Border
+                {
+                    Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#1a1a2e")),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(6, 4),
+                    Margin = new Thickness(0, 1)
+                };
+                var condStack = new StackPanel { Spacing = 2 };
+                condStack.Children.Add(new TextBlock
+                {
+                    Text = $"if ({cond.Condition})",
+                    FontSize = 10,
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e9a045")),
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace"),
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                });
+                condStack.Children.Add(new TextBlock
+                {
+                    Text = $"  ✓ true: {cond.TrueBranch.Count} elements  |  ✗ false: {cond.FalseBranch.Count} elements",
+                    FontSize = 9, Foreground = Avalonia.Media.Brushes.Gray
+                });
+                condPanel.Child = condStack;
+                parent.Children.Add(condPanel);
+            }
+        }
+
+        // ── Referenced Files ──
+        if (gump.ReferencedFiles.Count > 0)
+        {
+            AddSectionHeader(parent, $"🔗 Referenced Files ({gump.ReferencedFiles.Count})");
+            foreach (var refFile in gump.ReferencedFiles.Distinct().Take(20))
+            {
+                parent.Children.Add(new TextBlock
+                {
+                    Text = $"  → {refFile}",
+                    FontSize = 10,
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#a5c8d6")),
+                    FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
+                });
+            }
+        }
+    }
+
+    private static void AddSectionHeader(StackPanel parent, string text)
+    {
+        parent.Children.Add(new Border
+        {
+            Height = 1,
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#333")),
+            Margin = new Thickness(0, 4)
+        });
+        parent.Children.Add(new TextBlock
+        {
+            Text = text,
+            FontSize = 11, FontWeight = Avalonia.Media.FontWeight.Bold,
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e94560")),
+            Margin = new Thickness(0, 2, 0, 4)
+        });
+    }
 }

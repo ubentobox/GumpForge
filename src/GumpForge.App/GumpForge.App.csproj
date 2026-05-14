@@ -21,6 +21,7 @@
     <ProjectReference Include="..\GumpForge.Generators\GumpForge.Generators.csproj" />
     <ProjectReference Include="..\GumpForge.Parsers\GumpForge.Parsers.csproj" />
     <ProjectReference Include="..\GumpForge.Rendering\GumpForge.Rendering.csproj" />
+    <ProjectReference Include="..\GumpForge.ScriptAnalysis\GumpForge.ScriptAnalysis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
