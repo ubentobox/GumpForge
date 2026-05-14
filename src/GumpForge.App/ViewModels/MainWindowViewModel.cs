@@ -1366,6 +1366,9 @@ public partial class AssetBrowserViewModel : ViewModelBase
     /// <summary>Filtered view bound to the UI ListBox.</summary>
     public ObservableCollection<AssetThumbnail> Thumbnails { get; } = [];
 
+    /// <summary>Currently selected thumbnails for multi-select bulk operations.</summary>
+    public ObservableCollection<AssetThumbnail> SelectedThumbnails { get; } = [];
+
     /// <summary>Callback invoked when user double-clicks a thumbnail to place it on canvas.</summary>
     public Action<AssetThumbnail>? OnPlaceAsset { get; set; }
 
@@ -1450,6 +1453,8 @@ public partial class AssetBrowserViewModel : ViewModelBase
             OnPlaceAsset?.Invoke(SelectedThumbnail);
     }
 
+    // ── Single-asset commands ─────────────────────────────
+
     /// <summary>
     /// Creates a new collection and adds it to the profile.
     /// </summary>
@@ -1527,6 +1532,21 @@ public partial class AssetBrowserViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Removes an auto-tag from the selected asset and suppresses it permanently.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveAutoTag(string tag)
+    {
+        if (Profile is null || SelectedThumbnail is null || string.IsNullOrWhiteSpace(tag)) return;
+
+        if (Profile.AssetMetadata.TryGetValue(SelectedThumbnail.GumpId, out var meta))
+        {
+            AutoTagger.SuppressAutoTag(meta, tag);
+            SelectedThumbnail.Tags = [..meta.Tags, ..meta.AutoTags];
+        }
+    }
+
+    /// <summary>
     /// Sets a display name for the selected asset.
     /// </summary>
     [RelayCommand]
@@ -1542,6 +1562,86 @@ public partial class AssetBrowserViewModel : ViewModelBase
 
         meta.DisplayName = name?.Trim() ?? string.Empty;
         SelectedThumbnail.DisplayName = meta.DisplayName;
+    }
+
+    // ── Bulk / multi-select commands ──────────────────────
+
+    /// <summary>
+    /// Adds a tag to all currently selected assets.
+    /// </summary>
+    [RelayCommand]
+    private void BulkAddTag(string tag)
+    {
+        if (Profile is null || string.IsNullOrWhiteSpace(tag)) return;
+        var cleanTag = tag.Trim().ToLowerInvariant();
+
+        foreach (var thumb in SelectedThumbnails)
+        {
+            if (!Profile.AssetMetadata.TryGetValue(thumb.GumpId, out var meta))
+            {
+                meta = new AssetMeta { GumpId = thumb.GumpId };
+                Profile.AssetMetadata[thumb.GumpId] = meta;
+            }
+            if (!meta.Tags.Contains(cleanTag))
+            {
+                meta.Tags.Add(cleanTag);
+                thumb.Tags = [..meta.Tags, ..meta.AutoTags];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes a tag from all currently selected assets.
+    /// </summary>
+    [RelayCommand]
+    private void BulkRemoveTag(string tag)
+    {
+        if (Profile is null || string.IsNullOrWhiteSpace(tag)) return;
+        var cleanTag = tag.Trim().ToLowerInvariant();
+
+        foreach (var thumb in SelectedThumbnails)
+        {
+            if (Profile.AssetMetadata.TryGetValue(thumb.GumpId, out var meta))
+            {
+                meta.Tags.Remove(cleanTag);
+                if (meta.AutoTags.Contains(cleanTag))
+                    AutoTagger.SuppressAutoTag(meta, cleanTag);
+                thumb.Tags = [..meta.Tags, ..meta.AutoTags];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds all selected assets to a collection.
+    /// </summary>
+    [RelayCommand]
+    private void BulkAddToCollection(string collectionId)
+    {
+        if (Profile is null || string.IsNullOrEmpty(collectionId)) return;
+
+        var collection = Profile.Collections.FirstOrDefault(c => c.Id == collectionId);
+        if (collection is null) return;
+
+        foreach (var thumb in SelectedThumbnails)
+        {
+            if (!collection.AssetIds.Contains(thumb.GumpId))
+                collection.AssetIds.Add(thumb.GumpId);
+        }
+    }
+
+    /// <summary>
+    /// Removes all selected assets from a collection.
+    /// </summary>
+    [RelayCommand]
+    private void BulkRemoveFromCollection(string collectionId)
+    {
+        if (Profile is null || string.IsNullOrEmpty(collectionId)) return;
+
+        var collection = Profile.Collections.FirstOrDefault(c => c.Id == collectionId);
+        if (collection is null) return;
+
+        foreach (var thumb in SelectedThumbnails)
+            collection.AssetIds.Remove(thumb.GumpId);
     }
 }
 

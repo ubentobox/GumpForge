@@ -31,7 +31,31 @@ public partial class MainWindow : Window
         KeyDown += OnWindowKeyDown;
 
         // Set up AvaloniaEdit with C# syntax highlighting
-        Loaded += (_, _) => InitializeCodeEditor();
+        Loaded += (_, _) =>
+        {
+            InitializeCodeEditor();
+            WireTagsMenuHandlers();
+        };
+    }
+
+    /// <summary>
+    /// Wire up named Tags menu items and other named controls to their handlers.
+    /// </summary>
+    private void WireTagsMenuHandlers()
+    {
+        // Tags menu
+        if (this.FindControl<MenuItem>("OpenTagManagerMenuItem") is { } tagMgr)
+            tagMgr.Click += OpenTagManager_Click;
+        if (this.FindControl<MenuItem>("BulkAddTagMenuItem") is { } bulkAdd)
+            bulkAdd.Click += BulkAddTagMenu_Click;
+        if (this.FindControl<MenuItem>("BulkRemoveTagMenuItem") is { } bulkRemove)
+            bulkRemove.Click += BulkRemoveTagMenu_Click;
+        if (this.FindControl<MenuItem>("RunAutoTaggerMenuItem2") is { } autoTag2)
+            autoTag2.Click += RunAutoTagger_Click;
+        if (this.FindControl<MenuItem>("OpenTagRulesMenuItem") is { } tagRules)
+            tagRules.Click += OpenTagRules_Click;
+        if (this.FindControl<MenuItem>("SaveProfileMenuItem2") is { } saveProfile2)
+            saveProfile2.Click += SaveProfile_Click;
     }
 
     private void InitializeCodeEditor()
@@ -478,6 +502,188 @@ public partial class MainWindow : Window
         {
             GumpForge.App.Services.AutoTagger.TagAssets(vm.ActiveProfile, vm.ClientDataPath);
             vm.StatusMessage = $"✅ Auto-tagged {vm.ActiveProfile.AssetMetadata.Count} assets";
+        }
+    }
+
+    // ── Tag Badge Interactions ─────────────────────────────
+
+    /// <summary>
+    /// Click a tag badge text to populate the tag filter.
+    /// </summary>
+    private void TagBadge_Click(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (sender is TextBlock tb && tb.DataContext is string tag)
+        {
+            vm.AssetBrowser.FilterTag = tag;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Click ✕ on a tag badge to remove it from the asset.
+    /// Auto-tags are suppressed permanently.
+    /// </summary>
+    private void TagBadge_Remove(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (sender is not TextBlock tb || tb.DataContext is not string tag) return;
+
+        if (vm.AssetBrowser.SelectedThumbnail is null || vm.ActiveProfile is null) return;
+
+        var gumpId = vm.AssetBrowser.SelectedThumbnail.GumpId;
+        if (vm.ActiveProfile.AssetMetadata.TryGetValue(gumpId, out var meta))
+        {
+            if (meta.AutoTags.Contains(tag))
+                vm.AssetBrowser.RemoveAutoTagCommand.Execute(tag);
+            else
+                vm.AssetBrowser.RemoveTagCommand.Execute(tag);
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Bulk add a tag to ALL selected assets (multi-select).
+    /// </summary>
+    private void BulkAddTag_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var input = this.FindControl<TextBox>("NewTagInput");
+        if (input is null || string.IsNullOrWhiteSpace(input.Text)) return;
+
+        vm.AssetBrowser.BulkAddTagCommand.Execute(input.Text);
+        input.Text = string.Empty;
+        vm.StatusMessage = $"✅ Tag added to {vm.AssetBrowser.SelectedThumbnails.Count} assets";
+    }
+
+    // ── Multi-Select Sync ─────────────────────────────────
+
+    /// <summary>
+    /// Sync the SelectedThumbnails collection when multi-selection changes.
+    /// </summary>
+    private void AssetBrowser_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (sender is not ListBox lb) return;
+
+        vm.AssetBrowser.SelectedThumbnails.Clear();
+        foreach (var item in lb.SelectedItems!)
+        {
+            if (item is AssetThumbnail thumb)
+                vm.AssetBrowser.SelectedThumbnails.Add(thumb);
+        }
+
+        // Update count label
+        var countLabel = this.FindControl<TextBlock>("SelectedCountLabel");
+        if (countLabel is not null)
+        {
+            var count = vm.AssetBrowser.SelectedThumbnails.Count;
+            countLabel.Text = count > 1 ? $"({count} selected)" : "";
+        }
+    }
+
+    // ── Tag & Collection Manager Window ───────────────────
+
+    /// <summary>
+    /// Open the Tag & Collection Manager modal window.
+    /// </summary>
+    private void OpenTagManager_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.ActiveProfile is null) return;
+
+        var win = new TagCollectionWindow();
+        win.Initialize(vm.ActiveProfile, vm);
+        win.ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Open the Tag & Collection Manager on the Rules tab.
+    /// </summary>
+    private void OpenTagRules_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.ActiveProfile is null) return;
+
+        var win = new TagCollectionWindow();
+        win.Initialize(vm.ActiveProfile, vm, openTab: 0);
+        win.ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Prompt for a tag name and bulk-add to selected assets.
+    /// </summary>
+    private async void BulkAddTagMenu_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.ActiveProfile is null) return;
+        if (vm.AssetBrowser.SelectedThumbnails.Count == 0)
+        {
+            vm.StatusMessage = "⚠️ Select assets first";
+            return;
+        }
+
+        var dialog = new Window
+        {
+            Title = "Add Tag to Selected",
+            Width = 350, Height = 140,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brushes.Black
+        };
+
+        var input = new TextBox { PlaceholderText = "Tag name...", Margin = new Thickness(16) };
+        var btn = new Button { Content = "Add Tag", Margin = new Thickness(16, 0) };
+        var stack = new StackPanel { Margin = new Thickness(8) };
+        stack.Children.Add(new TextBlock { Text = $"Add tag to {vm.AssetBrowser.SelectedThumbnails.Count} asset(s):", Foreground = Avalonia.Media.Brushes.White, Margin = new Thickness(16, 16, 16, 4) });
+        stack.Children.Add(input);
+        stack.Children.Add(btn);
+        dialog.Content = stack;
+
+        string? tagName = null;
+        btn.Click += (_, _) => { tagName = input.Text; dialog.Close(); };
+        await dialog.ShowDialog(this);
+
+        if (!string.IsNullOrWhiteSpace(tagName))
+        {
+            vm.AssetBrowser.BulkAddTagCommand.Execute(tagName);
+            vm.StatusMessage = $"✅ Tag \"{tagName}\" added to {vm.AssetBrowser.SelectedThumbnails.Count} assets";
+        }
+    }
+
+    /// <summary>
+    /// Prompt for a tag name and bulk-remove from selected assets.
+    /// </summary>
+    private async void BulkRemoveTagMenu_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.ActiveProfile is null) return;
+        if (vm.AssetBrowser.SelectedThumbnails.Count == 0)
+        {
+            vm.StatusMessage = "⚠️ Select assets first";
+            return;
+        }
+
+        var dialog = new Window
+        {
+            Title = "Remove Tag from Selected",
+            Width = 350, Height = 140,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brushes.Black
+        };
+
+        var input = new TextBox { PlaceholderText = "Tag name...", Margin = new Thickness(16) };
+        var btn = new Button { Content = "Remove Tag", Margin = new Thickness(16, 0) };
+        var stack = new StackPanel { Margin = new Thickness(8) };
+        stack.Children.Add(new TextBlock { Text = $"Remove tag from {vm.AssetBrowser.SelectedThumbnails.Count} asset(s):", Foreground = Avalonia.Media.Brushes.White, Margin = new Thickness(16, 16, 16, 4) });
+        stack.Children.Add(input);
+        stack.Children.Add(btn);
+        dialog.Content = stack;
+
+        string? tagName = null;
+        btn.Click += (_, _) => { tagName = input.Text; dialog.Close(); };
+        await dialog.ShowDialog(this);
+
+        if (!string.IsNullOrWhiteSpace(tagName))
+        {
+            vm.AssetBrowser.BulkRemoveTagCommand.Execute(tagName);
+            vm.StatusMessage = $"✅ Tag \"{tagName}\" removed from {vm.AssetBrowser.SelectedThumbnails.Count} assets";
         }
     }
 }

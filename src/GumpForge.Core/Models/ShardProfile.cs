@@ -5,7 +5,7 @@ namespace GumpForge.Core.Models;
 
 /// <summary>
 /// Root model for a Shard Profile — stores editor preferences, client paths,
-/// asset metadata (tags, aliases), and collection definitions.
+/// asset metadata (tags, aliases), collection definitions, and auto-tag rules.
 /// Serialized as a .gfprofile JSON file.
 /// </summary>
 public partial class ShardProfile : ObservableObject
@@ -29,6 +29,12 @@ public partial class ShardProfile : ObservableObject
     /// User-defined asset collections.
     /// </summary>
     public ObservableCollection<AssetCollection> Collections { get; set; } = [];
+
+    /// <summary>
+    /// User-editable auto-tag rules. Each maps an ID range to a tag name.
+    /// Populated with defaults on first creation.
+    /// </summary>
+    public ObservableCollection<TagRule> TagRules { get; set; } = [];
 
     /// <summary>
     /// Hashes of last-known gump art entries, used to detect NEW/CHANGED assets.
@@ -64,9 +70,15 @@ public class AssetMeta
     public List<string> CollectionIds { get; set; } = [];
 
     /// <summary>
-    /// Whether this asset was auto-tagged from data sources (containers.txt, tiledata.mul).
+    /// Tags applied automatically from data sources (containers.txt, tiledata.mul, ID ranges).
     /// </summary>
     public List<string> AutoTags { get; set; } = [];
+
+    /// <summary>
+    /// Auto-tags that the user explicitly removed. These are permanently suppressed
+    /// and will not be re-applied when the auto-tagger runs again.
+    /// </summary>
+    public List<string> SuppressedAutoTags { get; set; } = [];
 }
 
 /// <summary>
@@ -78,4 +90,16 @@ public partial class AssetCollection : ObservableObject
     [ObservableProperty] private string _name = "Untitled Collection";
     public List<string> DefaultTags { get; set; } = [];
     public List<int> AssetIds { get; set; } = [];
+}
+
+/// <summary>
+/// An auto-tag rule that maps a gump ID range to a tag.
+/// Users can edit, disable, add, and remove rules.
+/// </summary>
+public partial class TagRule : ObservableObject
+{
+    [ObservableProperty] private int _startId;
+    [ObservableProperty] private int _endId;
+    [ObservableProperty] private string _tag = string.Empty;
+    [ObservableProperty] private bool _isEnabled = true;
 }

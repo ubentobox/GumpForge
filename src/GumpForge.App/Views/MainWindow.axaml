@@ -151,6 +151,21 @@
                 <MenuItem Header="Bring For_ward" Command="{Binding BringForwardCommand}"/>
                 <MenuItem Header="Send Back_ward" Command="{Binding SendBackwardCommand}"/>
             </MenuItem>
+            <MenuItem Header="Ta_gs">
+                <MenuItem Header="Tag &amp; Collection _Manager..." Name="OpenTagManagerMenuItem"/>
+                <Separator/>
+                <MenuItem Header="_Add Tag to Selected..." Name="BulkAddTagMenuItem"/>
+                <MenuItem Header="_Remove Tag from Selected..." Name="BulkRemoveTagMenuItem"/>
+                <Separator/>
+                <MenuItem Header="Add Selected to _Collection">
+                    <MenuItem Header="(open manager to create collections)" IsEnabled="False"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Run Auto-Tagger" Name="RunAutoTaggerMenuItem2"/>
+                <MenuItem Header="_Edit Auto-Tag Rules..." Name="OpenTagRulesMenuItem"/>
+                <Separator/>
+                <MenuItem Header="_Save Profile" Name="SaveProfileMenuItem2"/>
+            </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Apply Code to Canvas" Command="{Binding ApplyCodeCommand}"/>
                 <Separator/>
@@ -307,7 +322,10 @@
                     <Border DockPanel.Dock="Bottom" Padding="6,4" Background="#12122a"
                             IsVisible="{Binding AssetBrowser.SelectedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="🏷️ Asset Metadata" FontWeight="Bold" FontSize="11" Foreground="#e94560"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="🏷️ Asset Metadata" FontWeight="Bold" FontSize="11" Foreground="#e94560"/>
+                                <TextBlock Name="SelectedCountLabel" FontSize="10" Foreground="#666" VerticalAlignment="Center"/>
+                            </StackPanel>
 
                             <!-- Display Name -->
                             <Grid ColumnDefinitions="50,*">
@@ -319,9 +337,9 @@
                                          LostFocus="AssetDisplayName_LostFocus"/>
                             </Grid>
 
-                            <!-- Current Tags -->
+                            <!-- Current Tags with ✕ remove buttons -->
                             <TextBlock Text="Tags:" Foreground="#888" FontSize="10"/>
-                            <ItemsControl ItemsSource="{Binding AssetBrowser.SelectedThumbnail.Tags}">
+                            <ItemsControl Name="TagBadgesControl" ItemsSource="{Binding AssetBrowser.SelectedThumbnail.Tags}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel/>
@@ -329,20 +347,31 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#1a3a2a" CornerRadius="3" Padding="4,1" Margin="1">
-                                            <TextBlock Text="{Binding}" Foreground="#aad6a5" FontSize="9"/>
+                                        <Border Background="#1a3a2a" CornerRadius="3" Padding="4,1" Margin="1" Cursor="Hand">
+                                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                                <TextBlock Text="{Binding}" Foreground="#aad6a5" FontSize="9"
+                                                           PointerPressed="TagBadge_Click"
+                                                           ToolTip.Tip="Click to filter by this tag"/>
+                                                <TextBlock Text="✕" Foreground="#f66" FontSize="8"
+                                                           PointerPressed="TagBadge_Remove"
+                                                           Cursor="Hand" ToolTip.Tip="Remove tag"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <!-- Add Tag -->
-                            <Grid ColumnDefinitions="*,Auto">
+                            <!-- Add Tag (single or bulk) -->
+                            <Grid ColumnDefinitions="*,Auto,Auto">
                                 <TextBox Name="NewTagInput" PlaceholderText="Add tag..." FontSize="10"
                                          Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
                                 <Button Grid.Column="1" Content="+" FontSize="10" Padding="6,2" Margin="2,0,0,0"
                                         Background="#2ed573" Foreground="#0a0a1a" FontWeight="Bold" CornerRadius="3"
-                                        Click="AddTag_Click" ToolTip.Tip="Add tag"/>
+                                        Click="AddTag_Click" ToolTip.Tip="Add tag to selected asset"/>
+                                <Button Grid.Column="2" Content="All" FontSize="9" Padding="6,2" Margin="2,0,0,0"
+                                        Background="#1a6b3a" Foreground="#aad6a5" CornerRadius="3"
+                                        Click="BulkAddTag_Click" ToolTip.Tip="Add tag to ALL selected assets"/>
                             </Grid>
 
                             <!-- Collections assignment -->
@@ -401,10 +430,13 @@
 
                     <!-- Thumbnail grid -->
                     <ScrollViewer>
-                        <ListBox ItemsSource="{Binding AssetBrowser.Thumbnails}"
+                        <ListBox Name="AssetBrowserList"
+                                 ItemsSource="{Binding AssetBrowser.Thumbnails}"
                                  SelectedItem="{Binding AssetBrowser.SelectedThumbnail}"
+                                 SelectionMode="Multiple"
                                  Background="Transparent" BorderThickness="0"
-                                 DoubleTapped="AssetBrowser_DoubleTapped">
+                                 DoubleTapped="AssetBrowser_DoubleTapped"
+                                 SelectionChanged="AssetBrowser_SelectionChanged">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel/>
