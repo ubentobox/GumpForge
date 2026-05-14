@@ -32,6 +32,28 @@ public partial class MainWindow : Window
 
         // Set up AvaloniaEdit with C# syntax highlighting
         Loaded += (_, _) => InitializeCodeEditor();
+
+        var saveProfileMenuItem = this.FindControl<MenuItem>("SaveProfileMenuItem");
+        if (saveProfileMenuItem is not null)
+            saveProfileMenuItem.Click += SaveProfile_Click;
+
+        var runAutoTaggerMenuItem = this.FindControl<MenuItem>("RunAutoTaggerMenuItem");
+        if (runAutoTaggerMenuItem is not null)
+            runAutoTaggerMenuItem.Click += RunAutoTagger_Click;
+
+        var assetDisplayNameInput = this.FindControl<TextBox>("AssetDisplayNameInput");
+        if (assetDisplayNameInput is not null)
+            assetDisplayNameInput.LostFocus += AssetDisplayName_LostFocus;
+
+        var addTagButton = this.FindControl<Button>("AddTagButton");
+        if (addTagButton is not null)
+            addTagButton.Click += AddTag_Click;
+
+        var createCollectionButton = this.FindControl<Button>("CreateCollectionButton");
+        if (createCollectionButton is not null)
+            createCollectionButton.Click += CreateCollection_Click;
+
+        AddHandler(CheckBox.ClickEvent, CollectionCheckbox_Click, RoutingStrategies.Bubble);
     }
 
     private void InitializeCodeEditor()
@@ -214,7 +236,7 @@ public partial class MainWindow : Window
     private void CollectionCheckbox_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
-        if (sender is not CheckBox cb || cb.Tag is not string collectionId) return;
+        if (e.Source is not CheckBox cb || cb.Tag is not string collectionId) return;
         if (vm.AssetBrowser.SelectedThumbnail is null) return;
 
         if (cb.IsChecked == true)

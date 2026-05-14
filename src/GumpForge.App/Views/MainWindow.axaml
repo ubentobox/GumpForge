@@ -157,8 +157,8 @@
                 <MenuItem Header="_Import Images..." Command="{Binding ImportCustomAssetCommand}"/>
                 <MenuItem Header="_Export Code..."/>
                 <Separator/>
-                <MenuItem Header="Save _Profile" Click="SaveProfile_Click"/>
-                <MenuItem Header="_Run Auto-Tagger" Click="RunAutoTagger_Click"/>
+                <MenuItem Header="Save _Profile" Name="SaveProfileMenuItem"/>
+                <MenuItem Header="_Run Auto-Tagger" Name="RunAutoTaggerMenuItem"/>
                 <Separator/>
                 <MenuItem Header="_Validation"/>
             </MenuItem>
@@ -314,8 +314,7 @@
                                 <TextBox Grid.Column="1" Name="AssetDisplayNameInput"
                                          Text="{Binding AssetBrowser.SelectedThumbnail.DisplayName}"
                                          PlaceholderText="Display name..." FontSize="10"
-                                         Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"
-                                         LostFocus="AssetDisplayName_LostFocus"/>
+                                         Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
                             </Grid>
 
                             <!-- Current Tags -->
@@ -341,7 +340,7 @@
                                          Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
                                 <Button Grid.Column="1" Content="+" FontSize="10" Padding="6,2" Margin="2,0,0,0"
                                         Background="#2ed573" Foreground="#0a0a1a" FontWeight="Bold" CornerRadius="3"
-                                        Click="AddTag_Click" ToolTip.Tip="Add tag"/>
+                                        Name="AddTagButton" ToolTip.Tip="Add tag"/>
                             </Grid>
 
                             <!-- Collections assignment -->
@@ -351,7 +350,7 @@
                                     <DataTemplate>
                                         <CheckBox Content="{Binding Name}" FontSize="10" Foreground="#a5c8d6"
                                                   IsChecked="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AssetBrowser.SelectedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                  Click="CollectionCheckbox_Click" Tag="{Binding Id}"/>
+                                                  Tag="{Binding Id}"/>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -387,7 +386,7 @@
                                          Background="#0a0a1a" Foreground="#a5c8d6" BorderBrush="#333"/>
                                 <Button Grid.Column="1" Content="+" FontSize="10" Padding="6,2" Margin="2,0,0,0"
                                         Background="#54a0ff" Foreground="#0a0a1a" FontWeight="Bold" CornerRadius="3"
-                                        Click="CreateCollection_Click" ToolTip.Tip="Create collection"/>
+                                        Name="CreateCollectionButton" ToolTip.Tip="Create collection"/>
                             </Grid>
                         </StackPanel>
                     </Border>
