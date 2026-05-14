@@ -294,7 +294,38 @@
                                 <TextBlock Grid.Column="1" Text=" — " Foreground="#666" VerticalAlignment="Center" Margin="2,0"/>
                                 <TextBox Grid.Column="2" PlaceholderText="To" Text="{Binding AssetBrowser.FilterIdEnd}" FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
                             </Grid>
-                            <TextBox PlaceholderText="Filter by tag..." Text="{Binding AssetBrowser.FilterTag}" FontSize="10" Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
+
+                            <!-- Multi-tag filter: search + add -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="TagSearchBox" PlaceholderText="Search tags..."
+                                         Text="{Binding AssetBrowser.TagSearchText}"
+                                         FontSize="10" Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
+                                <Button Grid.Column="1" Content="✕" FontSize="9" Padding="4,2" Margin="2,0,0,0"
+                                        Background="#333" Foreground="#f66" CornerRadius="3"
+                                        Command="{Binding AssetBrowser.ClearFilterTagsCommand}"
+                                        ToolTip.Tip="Clear all tag filters"/>
+                            </Grid>
+
+                            <!-- Active filter tag badges (built in code-behind) -->
+                            <WrapPanel Name="FilterTagBadgesPanel"/>
+
+                            <!-- AND/OR toggle + checkboxes -->
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="0">
+                                    <RadioButton GroupName="TagMode" Content="AND" FontSize="9" Padding="4,1"
+                                                 IsChecked="{Binding AssetBrowser.FilterTagsRequireAll}"
+                                                 Foreground="#aad6a5"
+                                                 ToolTip.Tip="Assets must have ALL selected tags"/>
+                                    <RadioButton GroupName="TagMode" Content="OR" FontSize="9" Padding="4,1"
+                                                 Foreground="#a5c8d6"
+                                                 ToolTip.Tip="Assets must have ANY selected tag"/>
+                                </StackPanel>
+                                <CheckBox Content="Untagged" IsChecked="{Binding AssetBrowser.ShowUntaggedOnly}" Foreground="#999" FontSize="10"
+                                          ToolTip.Tip="Show only assets with no tags"/>
+                                <CheckBox Content="Changed" IsChecked="{Binding AssetBrowser.ShowChangedOnly}" Foreground="#e9a045" FontSize="10"
+                                          ToolTip.Tip="Show only NEW or CHANGED assets"/>
+                            </StackPanel>
+
                             <CheckBox Content="Custom only" IsChecked="{Binding AssetBrowser.ShowCustomOnly}" Foreground="#999" FontSize="11"/>
                         </StackPanel>
                     </Border>
@@ -429,15 +460,20 @@
                                             BorderBrush="#333" BorderThickness="1"
                                             ToolTip.Tip="{Binding Label}"
                                             PointerPressed="AssetThumbnail_PointerPressed">
-                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
-                                            <Border Width="56" Height="56" Background="#0a0a1a" CornerRadius="2"
-                                                    HorizontalAlignment="Center" ClipToBounds="True">
-                                                <Image Source="{Binding Bitmap}" Stretch="Uniform"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="9" Foreground="#e94560" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="72"/>
-                                            <TextBlock Text="{Binding SizeLabel}" FontSize="7" Foreground="#555" HorizontalAlignment="Center"/>
-                                        </StackPanel>
+                                        <Panel>
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                                                <Border Width="56" Height="56" Background="#0a0a1a" CornerRadius="2"
+                                                        HorizontalAlignment="Center" ClipToBounds="True">
+                                                    <Image Source="{Binding Bitmap}" Stretch="Uniform"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding DisplayLabel}" FontSize="9" Foreground="#e94560" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="72"/>
+                                                <TextBlock Text="{Binding SizeLabel}" FontSize="7" Foreground="#555" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                            <!-- NEW / CHANGED badge — styled in code-behind via StatusLabel -->
+                                            <TextBlock Name="StatusBadge" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                       FontSize="7" FontWeight="Bold" Padding="2,0" Margin="0"/>
+                                        </Panel>
                                     </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

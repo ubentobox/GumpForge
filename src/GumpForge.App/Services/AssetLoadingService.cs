@@ -1,12 +1,15 @@
 using GumpForge.Core.Services;
 using GumpForge.Formats.Mul;
 using GumpForge.App.ViewModels;
+using GumpForge.Core.Models;
+using System.Security.Cryptography;
 
 namespace GumpForge.App.Services;
 
 /// <summary>
 /// Service responsible for loading gump art from MUL files into the Asset Browser.
 /// Runs on a background thread to avoid blocking the UI.
+/// Computes per-asset hashes for NEW/CHANGED detection when a profile is active.
 /// </summary>
 public class AssetLoadingService
 {
@@ -23,8 +26,9 @@ public class AssetLoadingService
     /// <summary>
     /// Loads gump art assets from the specified client data folder.
     /// Expects to find Gumpart.mul and Gumpidx.mul (case-insensitive).
+    /// When a profile is provided, computes hashes for change detection.
     /// </summary>
-    public async Task LoadFromClientFolderAsync(string dataFolderPath)
+    public async Task LoadFromClientFolderAsync(string dataFolderPath, ShardProfile? profile = null)
     {
         // Find the MUL files (case-insensitive)
         var indexFile = FindFile(dataFolderPath, "gumpidx.mul");
@@ -38,6 +42,11 @@ public class AssetLoadingService
         _browser.IsLoading = true;
         _browser.AllThumbnails.Clear();
         _browser.Thumbnails.Clear();
+
+        // Snapshot the previous hashes for comparison
+        var previousHashes = profile?.AssetHashes.ToDictionary(kv => kv.Key, kv => kv.Value)
+                             ?? new Dictionary<int, string>();
+        var newHashes = new Dictionary<int, string>();
 
         try
         {
@@ -75,12 +84,26 @@ public class AssetLoadingService
                             // Cache the full pixel data
                             _cache.Put("gumpart.mul", id, entry.PixelData, entry.Width, entry.Height);
 
+                            // Compute hash for change detection
+                            var status = AssetStatus.None;
+                            if (profile is not null && entry.PixelData is not null)
+                            {
+                                var hash = ComputeHash(entry.PixelData);
+                                newHashes[id] = hash;
+
+                                if (!previousHashes.TryGetValue(id, out var prevHash))
+                                    status = AssetStatus.New;
+                                else if (prevHash != hash)
+                                    status = AssetStatus.Changed;
+                            }
+
                             thumbnails.Add(new AssetThumbnail
                             {
                                 GumpId = id,
                                 Width = entry.Width,
                                 Height = entry.Height,
-                                PixelData = entry.PixelData
+                                PixelData = entry.PixelData,
+                                Status = status
                             });
                         }
                     }
@@ -93,6 +116,12 @@ public class AssetLoadingService
                 // Apply current filter to show in UI
                 _browser.ApplyFilter();
             }
+
+            // Update profile hashes for next session
+            if (profile is not null)
+            {
+                profile.AssetHashes = newHashes;
+            }
         }
         catch (Exception ex)
         {
@@ -102,6 +131,16 @@ public class AssetLoadingService
         {
             _browser.IsLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Computes a lightweight hash of pixel data for change detection.
+    /// Uses SHA256 truncated to 12 hex chars for compact storage.
+    /// </summary>
+    private static string ComputeHash(byte[] pixelData)
+    {
+        var hash = SHA256.HashData(pixelData);
+        return Convert.ToHexString(hash, 0, 6); // 12 hex chars
     }
 
     private static string? FindFile(string folder, string fileName)

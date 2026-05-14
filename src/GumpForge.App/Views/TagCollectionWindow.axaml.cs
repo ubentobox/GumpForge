@@ -196,7 +196,29 @@ public partial class TagCollectionWindow : Window
 
         CollectionList.ItemsSource = null;
         CollectionList.ItemsSource = _profile.Collections
-            .Select(c => $"{c.Name} ({c.AssetIds.Count} items)")
+            .Select(c =>
+            {
+                int autoCount = GetAutoIncludedAssetIds(c).Count;
+                int manualCount = c.AssetIds.Count;
+                var autoLabel = c.AutoIncludeTags.Count > 0 ? $" + {autoCount} auto" : "";
+                return $"{c.Name} ({manualCount} manual{autoLabel})";
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Gets asset IDs that are auto-included via tags but not manually added or excluded.
+    /// </summary>
+    private List<int> GetAutoIncludedAssetIds(AssetCollection col)
+    {
+        if (_profile is null || col.AutoIncludeTags.Count == 0) return [];
+
+        return _profile.AssetMetadata
+            .Where(kvp => !col.AssetIds.Contains(kvp.Key) &&
+                          !col.ExcludedAssetIds.Contains(kvp.Key) &&
+                          kvp.Value.Tags.Concat(kvp.Value.AutoTags)
+                              .Any(t => col.AutoIncludeTags.Contains(t, StringComparer.OrdinalIgnoreCase)))
+            .Select(kvp => kvp.Key)
             .ToList();
     }
 
@@ -212,6 +234,7 @@ public partial class TagCollectionWindow : Window
         var col = GetSelectedCollection();
         if (col is null || _profile is null) return;
 
+        // Manual assets
         var assets = col.AssetIds.Select(id =>
         {
             _profile.AssetMetadata.TryGetValue(id, out var meta);
@@ -220,8 +243,23 @@ public partial class TagCollectionWindow : Window
                 : $"{meta.DisplayName} (#{id})";
         }).ToList();
 
+        // Auto-included assets
+        var autoIds = GetAutoIncludedAssetIds(col);
+        foreach (var id in autoIds)
+        {
+            _profile.AssetMetadata.TryGetValue(id, out var meta);
+            var label = string.IsNullOrEmpty(meta?.DisplayName)
+                ? $"Gump #{id} (0x{id:X4})"
+                : $"{meta.DisplayName} (#{id})";
+            assets.Add($"{label} [auto]");
+        }
+
         CollectionAssetList.ItemsSource = assets;
-        CollectionAssetCount.Text = $"\"{col.Name}\" — {assets.Count} asset(s)";
+        int total = col.AssetIds.Count + autoIds.Count;
+        CollectionAssetCount.Text = $"\"{col.Name}\" — {col.AssetIds.Count} manual + {autoIds.Count} auto = {total} total";
+
+        // Rebuild auto-include tag badges
+        RebuildAutoIncludeTagBadges(col);
     }
 
     private void AddCollection_Click(object? sender, RoutedEventArgs e)
@@ -320,6 +358,86 @@ public partial class TagCollectionWindow : Window
         col.AssetIds.Clear();
         CollectionList_SelectionChanged(null, null!);
         RefreshCollectionList();
+    }
+
+    // ═══════════════════════════════════════════
+    // Auto-Include Tags
+    // ═══════════════════════════════════════════
+
+    private void AddAutoIncludeTag_Click(object? sender, RoutedEventArgs e)
+    {
+        var col = GetSelectedCollection();
+        if (col is null) return;
+
+        var input = this.FindControl<TextBox>("AutoIncludeTagInput");
+        if (input is null || string.IsNullOrWhiteSpace(input.Text)) return;
+
+        var tag = input.Text.Trim();
+        if (!col.AutoIncludeTags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+        {
+            col.AutoIncludeTags.Add(tag);
+            input.Text = string.Empty;
+            CollectionList_SelectionChanged(null, null!);
+            RefreshCollectionList();
+        }
+    }
+
+    private void RebuildAutoIncludeTagBadges(AssetCollection col)
+    {
+        var panel = this.FindControl<WrapPanel>("AutoIncludeTagBadges");
+        var info = this.FindControl<TextBlock>("AutoIncludeInfo");
+        if (panel is null) return;
+
+        panel.Children.Clear();
+
+        foreach (var tag in col.AutoIncludeTags.ToList())
+        {
+            var textBlock = new TextBlock
+            {
+                Text = tag,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#a5c8d6")),
+                FontSize = 9,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+
+            var removeBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 7,
+                Padding = new Avalonia.Thickness(2, 0),
+                Margin = new Avalonia.Thickness(2, 0, 0, 0),
+                Background = Avalonia.Media.Brushes.Transparent,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#f66")),
+                MinWidth = 0, MinHeight = 0
+            };
+            var capturedTag = tag;
+            removeBtn.Click += (_, _) =>
+            {
+                col.AutoIncludeTags.Remove(capturedTag);
+                CollectionList_SelectionChanged(null, null!);
+                RefreshCollectionList();
+            };
+
+            var stack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 1 };
+            stack.Children.Add(textBlock);
+            stack.Children.Add(removeBtn);
+
+            panel.Children.Add(new Border
+            {
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#1a2a3a")),
+                CornerRadius = new Avalonia.CornerRadius(3),
+                Padding = new Avalonia.Thickness(4, 1),
+                Margin = new Avalonia.Thickness(1),
+                Child = stack
+            });
+        }
+
+        if (info is not null)
+        {
+            info.Text = col.AutoIncludeTags.Count > 0
+                ? "Assets with matching tags auto-join this collection"
+                : "No auto-include tags — add tags above";
+        }
     }
 
     // ═══════════════════════════════════════════

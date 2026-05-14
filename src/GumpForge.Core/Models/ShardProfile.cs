@@ -90,6 +90,17 @@ public partial class AssetCollection : ObservableObject
     [ObservableProperty] private string _name = "Untitled Collection";
     public List<string> DefaultTags { get; set; } = [];
     public List<int> AssetIds { get; set; } = [];
+
+    /// <summary>
+    /// Tags that automatically include matching assets in this collection.
+    /// Effective members = AssetIds ∪ {assets matching AutoIncludeTags} − ExcludedAssetIds.
+    /// </summary>
+    public List<string> AutoIncludeTags { get; set; } = [];
+
+    /// <summary>
+    /// Assets manually removed from this collection. Prevents auto-include from re-adding them.
+    /// </summary>
+    public List<int> ExcludedAssetIds { get; set; } = [];
 }
 
 /// <summary>

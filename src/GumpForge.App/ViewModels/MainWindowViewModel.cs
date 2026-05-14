@@ -154,9 +154,9 @@ public partial class MainWindowViewModel : ViewModelBase
         var mgr = AssetManager.Instance;
         mgr.LoadFromFolder(path);
 
-        // Load thumbnails into the asset browser
+        // Load thumbnails into the asset browser (with change detection if profile active)
         _assetLoader = new AssetLoadingService(AssetBrowser, Cache);
-        await _assetLoader.LoadFromClientFolderAsync(path);
+        await _assetLoader.LoadFromClientFolderAsync(path, ActiveProfile);
 
         var format = mgr.DataFormat ?? "??";
         Title = $"GumpForge — Gump Editor ({AssetBrowser.TotalAssets} assets via {format})";
@@ -1151,7 +1151,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         AddElement(new GumpImage
         {
-            Name = $"Gump_0x{thumb.GumpId:X4}",
+            Name = thumb.ElementName,
             GumpId = thumb.GumpId,
             X = 50, Y = 50,
             Width = thumb.Width,
@@ -1166,7 +1166,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         AddElement(new GumpImage
         {
-            Name = $"Gump_0x{thumb.GumpId:X4}",
+            Name = thumb.ElementName,
             GumpId = thumb.GumpId,
             X = x, Y = y,
             Width = thumb.Width,
@@ -1354,8 +1354,22 @@ public partial class AssetBrowserViewModel : ViewModelBase
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private int _totalAssets;
     [ObservableProperty] private AssetThumbnail? _selectedThumbnail;
-    [ObservableProperty] private string _filterTag = string.Empty;
     [ObservableProperty] private string? _filterCollectionId;
+
+    /// <summary>Whether multi-tag filter requires ALL tags (true=AND) or ANY tag (false=OR).</summary>
+    [ObservableProperty] private bool _filterTagsRequireAll = true;
+
+    /// <summary>Show only assets that have no tags at all.</summary>
+    [ObservableProperty] private bool _showUntaggedOnly;
+
+    /// <summary>Show only assets that are NEW or CHANGED since last session.</summary>
+    [ObservableProperty] private bool _showChangedOnly;
+
+    /// <summary>Search text for filtering the available tags dropdown.</summary>
+    [ObservableProperty] private string _tagSearchText = string.Empty;
+
+    /// <summary>Active tag filters — assets must match these tags.</summary>
+    public ObservableCollection<string> FilterTags { get; } = [];
 
     /// <summary>Reference to the active shard profile for metadata lookups.</summary>
     public ShardProfile? Profile { get; set; }
@@ -1372,12 +1386,83 @@ public partial class AssetBrowserViewModel : ViewModelBase
     /// <summary>Callback invoked when user double-clicks a thumbnail to place it on canvas.</summary>
     public Action<AssetThumbnail>? OnPlaceAsset { get; set; }
 
+    // Keep backward compat — FilterTag setter adds to FilterTags
+    public string FilterTag
+    {
+        get => FilterTags.Count > 0 ? string.Join(", ", FilterTags) : "";
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && !FilterTags.Contains(value))
+            {
+                FilterTags.Add(value);
+                ApplyFilter();
+            }
+        }
+    }
+
     partial void OnFilterTextChanged(string value) => ApplyFilter();
     partial void OnFilterIdStartChanged(int value) => ApplyFilter();
     partial void OnFilterIdEndChanged(int value) => ApplyFilter();
     partial void OnShowCustomOnlyChanged(bool value) => ApplyFilter();
-    partial void OnFilterTagChanged(string value) => ApplyFilter();
     partial void OnFilterCollectionIdChanged(string? value) => ApplyFilter();
+    partial void OnFilterTagsRequireAllChanged(bool value) => ApplyFilter();
+    partial void OnShowUntaggedOnlyChanged(bool value) => ApplyFilter();
+    partial void OnShowChangedOnlyChanged(bool value) => ApplyFilter();
+    partial void OnTagSearchTextChanged(string value) => OnPropertyChanged(nameof(AvailableTagsFiltered));
+
+    /// <summary>All unique tags from the profile for the dropdown.</summary>
+    public List<string> AvailableTags
+    {
+        get
+        {
+            if (Profile is null) return [];
+            var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var meta in Profile.AssetMetadata.Values)
+            {
+                foreach (var t in meta.Tags) tags.Add(t);
+                foreach (var t in meta.AutoTags) tags.Add(t);
+            }
+            return [.. tags.OrderBy(t => t)];
+        }
+    }
+
+    /// <summary>Available tags filtered by the search text, excluding already-active tags.</summary>
+    public List<string> AvailableTagsFiltered =>
+        AvailableTags
+            .Where(t => !FilterTags.Contains(t))
+            .Where(t => string.IsNullOrEmpty(TagSearchText) ||
+                        t.Contains(TagSearchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    [RelayCommand]
+    private void AddFilterTag(string tag)
+    {
+        if (!string.IsNullOrWhiteSpace(tag) && !FilterTags.Contains(tag))
+        {
+            FilterTags.Add(tag);
+            TagSearchText = string.Empty;
+            OnPropertyChanged(nameof(AvailableTagsFiltered));
+            ApplyFilter();
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveFilterTag(string tag)
+    {
+        if (FilterTags.Remove(tag))
+        {
+            OnPropertyChanged(nameof(AvailableTagsFiltered));
+            ApplyFilter();
+        }
+    }
+
+    [RelayCommand]
+    private void ClearFilterTags()
+    {
+        FilterTags.Clear();
+        OnPropertyChanged(nameof(AvailableTagsFiltered));
+        ApplyFilter();
+    }
 
     public void ApplyFilter()
     {
@@ -1393,24 +1478,53 @@ public partial class AssetBrowserViewModel : ViewModelBase
             if (ShowCustomOnly && thumb.GumpId < 30000)
                 continue;
 
-            // Collection filter
+            // Changed/New only
+            if (ShowChangedOnly && thumb.Status == AssetStatus.None)
+                continue;
+
+            // Get metadata for tag/collection checks
+            var meta = Profile?.AssetMetadata.GetValueOrDefault(thumb.GumpId);
+            var allTags = meta is not null ? [..meta.Tags, ..meta.AutoTags] : new List<string>();
+
+            // Untagged only
+            if (ShowUntaggedOnly && allTags.Count > 0)
+                continue;
+
+            // Collection filter (with smart auto-include)
             if (!string.IsNullOrEmpty(FilterCollectionId) && Profile is not null)
             {
                 var collection = Profile.Collections.FirstOrDefault(c => c.Id == FilterCollectionId);
-                if (collection is not null && !collection.AssetIds.Contains(thumb.GumpId))
-                    continue;
+                if (collection is not null)
+                {
+                    bool inManual = collection.AssetIds.Contains(thumb.GumpId);
+                    bool inAutoTag = collection.AutoIncludeTags.Count > 0 &&
+                                     !collection.ExcludedAssetIds.Contains(thumb.GumpId) &&
+                                     allTags.Any(t => collection.AutoIncludeTags.Contains(t, StringComparer.OrdinalIgnoreCase));
+                    if (!inManual && !inAutoTag)
+                        continue;
+                }
             }
 
-            // Tag filter
-            if (!string.IsNullOrWhiteSpace(FilterTag) && Profile is not null)
+            // Multi-tag filter
+            if (FilterTags.Count > 0 && Profile is not null)
             {
-                var meta = Profile.AssetMetadata.GetValueOrDefault(thumb.GumpId);
                 if (meta is null)
                     continue;
-                var tagMatch = meta.Tags.Concat(meta.AutoTags)
-                    .Any(t => t.Contains(FilterTag, StringComparison.OrdinalIgnoreCase));
-                if (!tagMatch)
-                    continue;
+
+                if (FilterTagsRequireAll)
+                {
+                    // AND: asset must have ALL filter tags
+                    bool hasAll = FilterTags.All(ft =>
+                        allTags.Any(t => t.Equals(ft, StringComparison.OrdinalIgnoreCase)));
+                    if (!hasAll) continue;
+                }
+                else
+                {
+                    // OR: asset must have ANY filter tag
+                    bool hasAny = FilterTags.Any(ft =>
+                        allTags.Any(t => t.Equals(ft, StringComparison.OrdinalIgnoreCase)));
+                    if (!hasAny) continue;
+                }
             }
 
             // Text filter — matches hex ID, decimal ID, display name, or tags
@@ -1422,12 +1536,12 @@ public partial class AssetBrowserViewModel : ViewModelBase
 
                 // Also search display name and tags from profile
                 bool matchesMeta = false;
-                if (Profile is not null && Profile.AssetMetadata.TryGetValue(thumb.GumpId, out var meta2))
+                if (meta is not null)
                 {
-                    matchesMeta = (!string.IsNullOrEmpty(meta2.DisplayName) &&
-                                   meta2.DisplayName.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
-                                  meta2.Tags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
-                                  meta2.AutoTags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase));
+                    matchesMeta = (!string.IsNullOrEmpty(meta.DisplayName) &&
+                                   meta.DisplayName.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
+                                  meta.Tags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
+                                  meta.AutoTags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase));
                 }
 
                 // Also check collection names
@@ -1645,6 +1759,9 @@ public partial class AssetBrowserViewModel : ViewModelBase
     }
 }
 
+/// <summary>Change detection status for an asset compared to previous session.</summary>
+public enum AssetStatus { None, New, Changed }
+
 public class AssetThumbnail
 {
     public int GumpId { get; init; }
@@ -1660,8 +1777,16 @@ public class AssetThumbnail
     /// <summary>Combined tags (user + auto) for display.</summary>
     public List<string> Tags { get; set; } = [];
 
+    /// <summary>Change detection status: None, New, or Changed.</summary>
+    public AssetStatus Status { get; set; } = AssetStatus.None;
+
     /// <summary>Display label: uses DisplayName if set, otherwise hex ID.</summary>
-    public string DisplayLabel => !string.IsNullOrEmpty(DisplayName) ? DisplayName : Label;
+    public string DisplayLabel => !string.IsNullOrEmpty(DisplayName) ? $"{DisplayName} ({Label})" : Label;
+
+    /// <summary>Element name for canvas placement.</summary>
+    public string ElementName => !string.IsNullOrEmpty(DisplayName)
+        ? $"{DisplayName} (0x{GumpId:X4})"
+        : $"Gump_0x{GumpId:X4}";
 
     private Avalonia.Media.Imaging.WriteableBitmap? _bitmap;
     public Avalonia.Media.Imaging.WriteableBitmap? Bitmap

@@ -56,6 +56,98 @@ public partial class MainWindow : Window
             tagRules.Click += OpenTagRules_Click;
         if (this.FindControl<MenuItem>("SaveProfileMenuItem2") is { } saveProfile2)
             saveProfile2.Click += SaveProfile_Click;
+
+        // Tag search box — Enter key adds the typed tag or first matching tag as a filter
+        if (this.FindControl<TextBox>("TagSearchBox") is { } searchBox)
+        {
+            searchBox.KeyDown += TagSearchBox_KeyDown;
+        }
+
+        // Rebuild filter badges whenever the FilterTags collection changes
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.AssetBrowser.FilterTags.CollectionChanged += (_, _) => RebuildFilterTagBadges();
+        }
+    }
+
+    /// <summary>
+    /// When Enter is pressed in the tag search box, add the first matching tag as a filter.
+    /// </summary>
+    private void TagSearchBox_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key != Avalonia.Input.Key.Enter) return;
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var search = vm.AssetBrowser.TagSearchText.Trim();
+        if (string.IsNullOrEmpty(search)) return;
+
+        // Find exact match first, then partial
+        var match = vm.AssetBrowser.AvailableTagsFiltered
+            .FirstOrDefault(t => t.Equals(search, StringComparison.OrdinalIgnoreCase))
+            ?? vm.AssetBrowser.AvailableTagsFiltered.FirstOrDefault();
+
+        if (match is not null)
+        {
+            vm.AssetBrowser.AddFilterTagCommand.Execute(match);
+        }
+        else
+        {
+            // Add as a custom filter tag even if not in available tags
+            vm.AssetBrowser.AddFilterTagCommand.Execute(search);
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Rebuilds the active filter tag badges in the FilterTagBadgesPanel.
+    /// </summary>
+    private void RebuildFilterTagBadges()
+    {
+        var panel = this.FindControl<WrapPanel>("FilterTagBadgesPanel");
+        if (panel is null) return;
+
+        panel.Children.Clear();
+
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        foreach (var tag in vm.AssetBrowser.FilterTags.ToList())
+        {
+            var textBlock = new TextBlock
+            {
+                Text = tag,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#aad6a5")),
+                FontSize = 9,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+
+            var removeBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 7,
+                Padding = new Thickness(2, 0),
+                Margin = new Thickness(2, 0, 0, 0),
+                Background = Avalonia.Media.Brushes.Transparent,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#f66")),
+                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                MinWidth = 0, MinHeight = 0
+            };
+            var capturedTag = tag;
+            removeBtn.Click += (_, _) => vm.AssetBrowser.RemoveFilterTagCommand.Execute(capturedTag);
+
+            var stack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 1 };
+            stack.Children.Add(textBlock);
+            stack.Children.Add(removeBtn);
+
+            panel.Children.Add(new Border
+            {
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#1a3a2a")),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(4, 1),
+                Margin = new Thickness(1),
+                Child = stack
+            });
+        }
     }
 
     private void InitializeCodeEditor()
@@ -346,7 +438,7 @@ public partial class MainWindow : Window
         };
         textBlock.PointerPressed += (_, args) =>
         {
-            vm.AssetBrowser.FilterTag = tag;
+            vm.AssetBrowser.AddFilterTagCommand.Execute(tag);
             args.Handled = true;
         };
         ToolTip.SetTip(textBlock, "Click to filter by this tag");
