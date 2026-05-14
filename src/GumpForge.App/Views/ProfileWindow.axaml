@@ -1,0 +1,130 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:GumpForge.App.Views"
+        x:Class="GumpForge.App.Views.ProfileWindow"
+        Title="GumpForge — Shard Profile"
+        Width="520" Height="500"
+        MinWidth="420" MinHeight="400"
+        WindowStartupLocation="CenterScreen"
+        Background="#0a0a1a"
+        CanResize="False"
+        ExtendClientAreaToDecorationsHint="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#e94560"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#12122a"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#e94560"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <DockPanel>
+            <!-- Header -->
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                <TextBlock Text="⚒️ GumpForge" FontSize="24" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock Text="Select or create a Shard Profile to get started." FontSize="13"
+                           Foreground="#888" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Bottom buttons -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                        Spacing="8" Margin="0,16,0,0">
+                <Button Classes="secondary" Content="Skip (No Profile)" Click="Skip_Click"/>
+            </StackPanel>
+
+            <!-- Tabs -->
+            <TabControl Background="Transparent">
+                <!-- Existing Profiles Tab -->
+                <TabItem Header="📂 Load Profile" FontSize="13">
+                    <DockPanel Margin="0,12,0,0">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                                    HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                            <Button Classes="secondary" Content="Browse..." Click="BrowseProfile_Click"/>
+                            <Button Classes="accent" Content="Load Selected" Click="LoadProfile_Click"
+                                    Name="LoadButton"/>
+                        </StackPanel>
+
+                        <ListBox Name="ProfileList" SelectionMode="Single">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="views:ProfileEntry">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Path}" FontSize="11" Foreground="#666"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </TabItem>
+
+                <!-- Create New Profile Tab -->
+                <TabItem Header="✨ New Profile" FontSize="13">
+                    <StackPanel Margin="0,12,0,0" Spacing="12">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Profile Name" FontWeight="Bold"/>
+                            <TextBox Name="ProfileNameInput" Text="My Shard" PlaceholderText="e.g. ServUO Dev"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Client Data Folder" FontWeight="Bold"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Classes="secondary" Content="Browse..."
+                                        Click="BrowseClientFolder_Click" Margin="8,0,0,0"/>
+                                <TextBox Name="ClientPathInput" PlaceholderText="Path to UO client data"
+                                         IsReadOnly="True"/>
+                            </DockPanel>
+                            <TextBlock Text="Contains gumpart.mul, hues.mul, etc." FontSize="11" Foreground="#666"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Profile Storage" FontWeight="Bold"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Classes="secondary" Content="Change..."
+                                        Click="BrowseProfileStorage_Click" Margin="8,0,0,0"/>
+                                <TextBox Name="StoragePathInput" IsReadOnly="True"/>
+                            </DockPanel>
+                            <TextBlock Text="Default: %AppData%/GumpForge/Profiles/" FontSize="11" Foreground="#666"/>
+                        </StackPanel>
+
+                        <Button Classes="accent" Content="Create Profile" Click="CreateProfile_Click"
+                                HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
+    </Border>
+</Window>

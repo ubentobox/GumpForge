@@ -20,12 +20,22 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            var profileWindow = new ProfileWindow();
+            profileWindow.Closed += (_, _) =>
             {
-                DataContext = new MainWindowViewModel(),
+                var vm = new MainWindowViewModel();
+
+                if (profileWindow.SelectedProfile is not null)
+                    vm.ApplyProfile(profileWindow.SelectedProfile);
+
+                var mainWindow = new MainWindow { DataContext = vm };
+                desktop.MainWindow = mainWindow;
+                mainWindow.Show();
             };
+
+            desktop.MainWindow = profileWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
-}
+}

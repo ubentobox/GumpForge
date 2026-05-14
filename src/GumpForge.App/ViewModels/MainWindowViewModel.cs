@@ -57,6 +57,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string? _clientDataPath;
     [ObservableProperty] private string _statusMessage = "Ready";
 
+    // Active shard profile
+    [ObservableProperty] private ShardProfile? _activeProfile;
+
     public MainWindowViewModel()
     {
         AssetBrowser = new AssetBrowserViewModel();
@@ -78,6 +81,36 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnActivePageChanged(int value)
     {
         Canvas.ActivePage = value;
+    }
+
+    /// <summary>
+    /// Apply a loaded ShardProfile to the editor — preferences, client data path, etc.
+    /// Called after construction when a profile is selected.
+    /// </summary>
+    public void ApplyProfile(ShardProfile profile)
+    {
+        ActiveProfile = profile;
+
+        // Apply editor preferences
+        var prefs = profile.Preferences;
+        Canvas.GridSize = prefs.GridSize;
+        Canvas.ShowGrid = prefs.GridVisible;
+        Canvas.SnapToGrid = true; // Snap is on, resolution is stored in profile
+        Canvas.ShowRulers = prefs.ShowRulers;
+
+        // Apply default canvas size to new documents
+        Document.CanvasWidth = prefs.DefaultCanvasWidth;
+        Document.CanvasHeight = prefs.DefaultCanvasHeight;
+
+        // Load client data if path is set
+        if (!string.IsNullOrEmpty(profile.ClientDataPath) && Directory.Exists(profile.ClientDataPath))
+        {
+            ClientDataPath = profile.ClientDataPath;
+            _ = LoadAssetsFromPathAsync(profile.ClientDataPath);
+        }
+
+        Title = $"GumpForge — {profile.ProfileName}";
+        StatusMessage = $"Profile loaded: {profile.ProfileName}";
     }
 
     private async Task TryAutoLoadAssetsAsync()
