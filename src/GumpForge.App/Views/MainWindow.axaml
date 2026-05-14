@@ -337,30 +337,9 @@
                                          LostFocus="AssetDisplayName_LostFocus"/>
                             </Grid>
 
-                            <!-- Current Tags with ✕ remove buttons -->
+                            <!-- Current Tags — rendered in code-behind for reliable event handling -->
                             <TextBlock Text="Tags:" Foreground="#888" FontSize="10"/>
-                            <ItemsControl Name="TagBadgesControl" ItemsSource="{Binding AssetBrowser.SelectedThumbnail.Tags}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#1a3a2a" CornerRadius="3" Padding="4,1" Margin="1" Cursor="Hand">
-                                            <StackPanel Orientation="Horizontal" Spacing="3">
-                                                <TextBlock Text="{Binding}" Foreground="#aad6a5" FontSize="9"
-                                                           PointerPressed="TagBadge_Click"
-                                                           ToolTip.Tip="Click to filter by this tag"/>
-                                                <TextBlock Text="✕" Foreground="#f66" FontSize="8"
-                                                           PointerPressed="TagBadge_Remove"
-                                                           Cursor="Hand" ToolTip.Tip="Remove tag"
-                                                           VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <WrapPanel Name="TagBadgesPanel"/>
 
                             <!-- Add Tag (single or bulk) -->
                             <Grid ColumnDefinitions="*,Auto,Auto">
@@ -374,17 +353,9 @@
                                         Click="BulkAddTag_Click" ToolTip.Tip="Add tag to ALL selected assets"/>
                             </Grid>
 
-                            <!-- Collections assignment -->
+                            <!-- Collections assignment — rendered in code-behind for correct checked state -->
                             <TextBlock Text="Collections:" Foreground="#888" FontSize="10" Margin="0,4,0,0"/>
-                            <ItemsControl ItemsSource="{Binding ActiveProfile.Collections}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <CheckBox Content="{Binding Name}" FontSize="10" Foreground="#a5c8d6"
-                                                  IsChecked="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AssetBrowser.SelectedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                  Click="CollectionCheckbox_Click" Tag="{Binding Id}"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <StackPanel Name="CollectionCheckboxPanel" Spacing="1"/>
                         </StackPanel>
                     </Border>
 

@@ -205,7 +205,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Add a user tag to the currently selected asset.
+    /// Add a user tag to the currently selected asset, then refresh the metadata panel.
     /// </summary>
     private void AddTag_Click(object? sender, RoutedEventArgs e)
     {
@@ -216,6 +216,7 @@ public partial class MainWindow : Window
 
         vm.AssetBrowser.AddTagCommand.Execute(input.Text);
         input.Text = string.Empty;
+        RefreshMetadataPanel();
     }
 
     /// <summary>
@@ -230,21 +231,160 @@ public partial class MainWindow : Window
 
         vm.AssetBrowser.CreateCollectionCommand.Execute(input.Text);
         input.Text = string.Empty;
+        RefreshMetadataPanel();
+    }
+
+    // ── Metadata Panel Rendering ──────────────────────────────
+
+    /// <summary>
+    /// Rebuilds the tag badges and collection checkboxes for the selected asset.
+    /// Called whenever the selection changes or tags/collections are modified.
+    /// </summary>
+    private void RefreshMetadataPanel()
+    {
+        var tagPanel = this.FindControl<WrapPanel>("TagBadgesPanel");
+        var colPanel = this.FindControl<StackPanel>("CollectionCheckboxPanel");
+        if (tagPanel is null || colPanel is null) return;
+
+        tagPanel.Children.Clear();
+        colPanel.Children.Clear();
+
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (vm.AssetBrowser.SelectedThumbnail is null || vm.ActiveProfile is null) return;
+
+        var gumpId = vm.AssetBrowser.SelectedThumbnail.GumpId;
+        vm.ActiveProfile.AssetMetadata.TryGetValue(gumpId, out var meta);
+
+        // ── Build tag badges ──
+        if (meta is not null)
+        {
+            // User tags (green badges)
+            foreach (var tag in meta.Tags.ToList())
+            {
+                var badge = CreateTagBadge(vm, tag, isAutoTag: false);
+                tagPanel.Children.Add(badge);
+            }
+            // Auto-tags (blue badges)
+            foreach (var tag in meta.AutoTags.ToList())
+            {
+                var badge = CreateTagBadge(vm, tag, isAutoTag: true);
+                tagPanel.Children.Add(badge);
+            }
+        }
+
+        if (tagPanel.Children.Count == 0)
+        {
+            tagPanel.Children.Add(new TextBlock
+            {
+                Text = "(no tags)",
+                Foreground = Avalonia.Media.Brushes.Gray,
+                FontSize = 9
+            });
+        }
+
+        // ── Build collection checkboxes ──
+        foreach (var col in vm.ActiveProfile.Collections)
+        {
+            var isInCollection = col.AssetIds.Contains(gumpId);
+            var cb = new CheckBox
+            {
+                Content = $"{col.Name} ({col.AssetIds.Count})",
+                FontSize = 10,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#a5c8d6")),
+                IsChecked = isInCollection,
+                Tag = col.Id
+            };
+            cb.Click += (s, _) =>
+            {
+                if (s is not CheckBox checkbox || checkbox.Tag is not string collectionId) return;
+                if (vm.AssetBrowser.SelectedThumbnail is null) return;
+
+                if (checkbox.IsChecked == true)
+                    vm.AssetBrowser.AddToCollectionCommand.Execute(collectionId);
+                else
+                    vm.AssetBrowser.RemoveFromCollectionCommand.Execute(collectionId);
+
+                // Also update the collection memberships in meta
+                if (vm.ActiveProfile.AssetMetadata.TryGetValue(vm.AssetBrowser.SelectedThumbnail.GumpId, out var m))
+                {
+                    if (checkbox.IsChecked == true && !m.CollectionIds.Contains(collectionId))
+                        m.CollectionIds.Add(collectionId);
+                    else
+                        m.CollectionIds.Remove(collectionId);
+                }
+            };
+            colPanel.Children.Add(cb);
+        }
+
+        if (colPanel.Children.Count == 0)
+        {
+            colPanel.Children.Add(new TextBlock
+            {
+                Text = "(no collections — create one below or in Tags → Manager)",
+                Foreground = Avalonia.Media.Brushes.Gray,
+                FontSize = 9
+            });
+        }
     }
 
     /// <summary>
-    /// Toggle asset membership in a collection when checkbox is clicked.
+    /// Creates a tag badge with clickable text (filter) and ✕ button (remove).
     /// </summary>
-    private void CollectionCheckbox_Click(object? sender, RoutedEventArgs e)
+    private Border CreateTagBadge(MainWindowViewModel vm, string tag, bool isAutoTag)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
-        if (sender is not CheckBox cb || cb.Tag is not string collectionId) return;
-        if (vm.AssetBrowser.SelectedThumbnail is null) return;
+        var bgColor = isAutoTag ? "#1a2a3a" : "#1a3a2a";
+        var fgColor = isAutoTag ? "#a5c8d6" : "#aad6a5";
+        var label = isAutoTag ? $"{tag} ⚙" : tag;
 
-        if (cb.IsChecked == true)
-            vm.AssetBrowser.AddToCollectionCommand.Execute(collectionId);
-        else
-            vm.AssetBrowser.RemoveFromCollectionCommand.Execute(collectionId);
+        var textBlock = new TextBlock
+        {
+            Text = label,
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(fgColor)),
+            FontSize = 9,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        };
+        textBlock.PointerPressed += (_, args) =>
+        {
+            vm.AssetBrowser.FilterTag = tag;
+            args.Handled = true;
+        };
+        ToolTip.SetTip(textBlock, "Click to filter by this tag");
+
+        var removeBtn = new Button
+        {
+            Content = "✕",
+            FontSize = 8,
+            Padding = new Thickness(2, 0),
+            Margin = new Thickness(2, 0, 0, 0),
+            Background = Avalonia.Media.Brushes.Transparent,
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#f66")),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            MinWidth = 0, MinHeight = 0
+        };
+        ToolTip.SetTip(removeBtn, isAutoTag ? "Remove auto-tag (permanent)" : "Remove tag");
+        removeBtn.Click += (_, _) =>
+        {
+            if (isAutoTag)
+                vm.AssetBrowser.RemoveAutoTagCommand.Execute(tag);
+            else
+                vm.AssetBrowser.RemoveTagCommand.Execute(tag);
+            RefreshMetadataPanel();
+        };
+
+        var stack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 1 };
+        stack.Children.Add(textBlock);
+        stack.Children.Add(removeBtn);
+
+        return new Border
+        {
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(bgColor)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 1),
+            Margin = new Thickness(1),
+            Child = stack
+        };
     }
 
     /// <summary>
@@ -505,43 +645,6 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Tag Badge Interactions ─────────────────────────────
-
-    /// <summary>
-    /// Click a tag badge text to populate the tag filter.
-    /// </summary>
-    private void TagBadge_Click(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel vm) return;
-        if (sender is TextBlock tb && tb.DataContext is string tag)
-        {
-            vm.AssetBrowser.FilterTag = tag;
-            e.Handled = true;
-        }
-    }
-
-    /// <summary>
-    /// Click ✕ on a tag badge to remove it from the asset.
-    /// Auto-tags are suppressed permanently.
-    /// </summary>
-    private void TagBadge_Remove(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel vm) return;
-        if (sender is not TextBlock tb || tb.DataContext is not string tag) return;
-
-        if (vm.AssetBrowser.SelectedThumbnail is null || vm.ActiveProfile is null) return;
-
-        var gumpId = vm.AssetBrowser.SelectedThumbnail.GumpId;
-        if (vm.ActiveProfile.AssetMetadata.TryGetValue(gumpId, out var meta))
-        {
-            if (meta.AutoTags.Contains(tag))
-                vm.AssetBrowser.RemoveAutoTagCommand.Execute(tag);
-            else
-                vm.AssetBrowser.RemoveTagCommand.Execute(tag);
-        }
-        e.Handled = true;
-    }
-
     /// <summary>
     /// Bulk add a tag to ALL selected assets (multi-select).
     /// </summary>
@@ -555,6 +658,7 @@ public partial class MainWindow : Window
         vm.AssetBrowser.BulkAddTagCommand.Execute(input.Text);
         input.Text = string.Empty;
         vm.StatusMessage = $"✅ Tag added to {vm.AssetBrowser.SelectedThumbnails.Count} assets";
+        RefreshMetadataPanel();
     }
 
     // ── Multi-Select Sync ─────────────────────────────────
@@ -581,6 +685,9 @@ public partial class MainWindow : Window
             var count = vm.AssetBrowser.SelectedThumbnails.Count;
             countLabel.Text = count > 1 ? $"({count} selected)" : "";
         }
+
+        // Refresh tag badges and collection checkboxes for the newly selected asset
+        RefreshMetadataPanel();
     }
 
     // ── Tag & Collection Manager Window ───────────────────
