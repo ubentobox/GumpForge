@@ -2,13 +2,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="GumpForge.App.Views.HelpWindow"
         Title="GumpForge — Quick Start Guide"
-        Width="620" Height="680"
+        Width="660" Height="760"
         WindowStartupLocation="CenterOwner"
         Background="#0f1a2e">
     <DockPanel>
         <!-- Header -->
         <Border DockPanel.Dock="Top" Background="#16213e" Padding="16,12">
-            <TextBlock Text="⚒️ GumpForge Quick Start Guide" FontSize="20" FontWeight="Bold" Foreground="#e94560"/>
+            <StackPanel>
+                <TextBlock Text="⚒️ GumpForge Quick Start Guide" FontSize="20" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock Text="v2.0 — Visual Gump Editor for Ultima Online" FontSize="11" Foreground="#888" Margin="0,2,0,0"/>
+            </StackPanel>
         </Border>
 
         <!-- Footer -->
@@ -23,7 +26,7 @@
             <StackPanel Spacing="16">
                 <!-- Getting Started -->
                 <TextBlock Text="Getting Started" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
-                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="1. File > Open Client Folder — Select your UO client data directory (containing gumpart.mul/gumpidx.mul or gumpartLegacyMUL.uop). GumpForge auto-detects MUL and UOP formats.&#x0a;&#x0a;2. The Asset Browser (left panel) loads all gump art thumbnails. Double-click or drag an asset to place it on the canvas.&#x0a;&#x0a;3. Use File > New to start a fresh document, or File > Open to load a .gumpproj project file."/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="1. File > Open Client Folder — Select your UO client data directory (containing gumpart.mul/gumpidx.mul or gumpartLegacyMUL.uop). GumpForge auto-detects MUL and UOP formats.&#x0a;&#x0a;2. The Asset Browser (left panel) loads all gump art thumbnails. Double-click or drag an asset to place it on the canvas.&#x0a;&#x0a;3. Use File > New to start a fresh document, or File > Open to load a .gumpproj project file.&#x0a;&#x0a;4. On first launch you'll be prompted to create a Shard Profile. Profiles store your client data path, editor preferences, asset tags, and collections."/>
 
                 <Border Height="1" Background="#333"/>
 
@@ -36,6 +39,24 @@
                 <!-- Toolbar -->
                 <TextBlock Text="Toolbar Actions" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
                 <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="• + Bg / + Btn / + Lbl / + Img — Add new elements.&#x0a;• Align L/R/T/B — Align selected elements.&#x0a;• Dist H/V — Distribute elements evenly.&#x0a;• ⊞ Grid — Toggle grid overlay.&#x0a;• 📏 Snap — Toggle snap-to-grid.&#x0a;• 🗙 Guides — Clear ruler guide lines.&#x0a;• 📸 PNG (F5) — Export canvas as PNG image.&#x0a;• 📦 MUL (F6) — Export to gumpart.mul at a gump ID.&#x0a;• 🖼️ Import — Import a PNG as custom gump art."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Asset Browser -->
+                <TextBlock Text="Asset Browser" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="The left panel shows all loaded gump art thumbnails:&#x0a;• Filter by hex/decimal ID, display name, tag, or collection name using the search box.&#x0a;• Filter by tag using the 'Filter tag' field, or click a tag badge on a selected asset.&#x0a;• Filter by collection using the collection dropdown.&#x0a;• ID Range sliders let you narrow the range of visible assets.&#x0a;• 'Custom Only' checkbox shows only IDs ≥ 30000.&#x0a;• Multi-select: Hold Ctrl or Shift to select multiple assets for bulk tagging.&#x0a;• Double-click or drag a thumbnail to place it on the canvas."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Tags and Collections -->
+                <TextBlock Text="🏷️ Tags &amp; Collections" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="GumpForge organizes assets using tags and collections, persisted in your Shard Profile.&#x0a;&#x0a;ASSET METADATA PANEL (below search filters):&#x0a;• Select an asset to see its metadata: display name, tags, and collection memberships.&#x0a;• Tags appear as badges — green for user tags, blue (with ⚙) for auto-tags.&#x0a;• Click a tag badge text to filter the browser by that tag.&#x0a;• Click the ✕ button on a tag to remove it. Auto-tags are permanently suppressed.&#x0a;• Use the '+' button to add a tag to the selected asset.&#x0a;• Use the 'All' button to add a tag to ALL currently selected assets (multi-select).&#x0a;• Toggle collection checkboxes to add/remove the asset from collections.&#x0a;&#x0a;TAGS MENU (top menu bar):&#x0a;• Tag &amp; Collection Manager — Opens the full management window (3 tabs).&#x0a;• Add / Remove Tag to Selected — Bulk tag operations via prompt dialog.&#x0a;• Run Auto-Tagger — Re-runs the auto-tagging engine on all assets.&#x0a;• Edit Auto-Tag Rules — Opens the rules editor tab.&#x0a;• Save Profile — Persists all changes to disk."/>
+
+                <Border Height="1" Background="#333"/>
+
+                <!-- Tag & Collection Manager -->
+                <TextBlock Text="Tag &amp; Collection Manager Window" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="Open via Tags > Tag &amp; Collection Manager (or the Tags menu).&#x0a;&#x0a;TAB 1 — AUTO-TAG RULES:&#x0a;• View and edit rules that map gump ID ranges to tags (e.g. IDs 50-99 → 'paperdoll').&#x0a;• Enable/disable individual rules with the checkbox.&#x0a;• Add new rules, delete selected rules, or reset to defaults.&#x0a;• Click 'Run Auto-Tagger' to apply all enabled rules to your assets.&#x0a;&#x0a;TAB 2 — TAG MANAGER:&#x0a;• See all tags in use across your library.&#x0a;• Select a tag to see which assets have it (shows [auto] or [user] source).&#x0a;• Rename a tag globally, delete a tag, or remove it from all assets.&#x0a;&#x0a;TAB 3 — COLLECTIONS:&#x0a;• Create, rename, and delete collections.&#x0a;• Select a collection to see its member assets.&#x0a;• Remove individual assets or clear all assets from a collection."/>
 
                 <Border Height="1" Background="#333"/>
 
@@ -57,10 +78,16 @@
 
                 <Border Height="1" Background="#333"/>
 
+                <!-- Shard Profiles -->
+                <TextBlock Text="Shard Profiles" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" Text="Profiles (.gfprofile) store all your per-shard settings:&#x0a;• Client data path (auto-loads assets on startup).&#x0a;• Editor preferences: grid size, snap, padding, canvas defaults.&#x0a;• Asset metadata: display names, user tags, auto-tags, suppressions.&#x0a;• Collections and their member asset lists.&#x0a;• Auto-tag rules (editable ID range → tag mappings).&#x0a;&#x0a;Create profiles via File > Profile, or on first launch."/>
+
+                <Border Height="1" Background="#333"/>
+
                 <!-- Keyboard Shortcuts -->
                 <TextBlock Text="Keyboard Shortcuts" FontSize="16" FontWeight="Bold" Foreground="#e94560"/>
                 <TextBlock TextWrapping="Wrap" Foreground="#ccc" FontSize="12" FontFamily="Cascadia Code,Consolas,monospace"
-                           Text="Ctrl+Z      Undo&#x0a;Ctrl+Y      Redo&#x0a;Ctrl+C      Copy&#x0a;Ctrl+V      Paste&#x0a;Delete      Delete selected&#x0a;F5          Export PNG&#x0a;F6          Export MUL&#x0a;Alt+Drag    Bypass snap"/>
+                           Text="F1          Help (this guide)&#x0a;F5          Export PNG&#x0a;F6          Export MUL&#x0a;Ctrl+Z      Undo&#x0a;Ctrl+Y      Redo&#x0a;Ctrl+C      Copy&#x0a;Ctrl+V      Paste&#x0a;Ctrl+D      Duplicate&#x0a;Ctrl+G      Group&#x0a;Delete      Delete selected&#x0a;Alt+Drag    Bypass snap&#x0a;Ctrl+Click  Multi-select assets"/>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

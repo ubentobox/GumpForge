@@ -35,6 +35,20 @@ Generates complete C# gump classes for **5 server emulators**:
 - **Custom Import** — Import PNG images as custom gump art
 - **Project Files** — Save/load `.gumpproj` project files
 
+### 🏷️ Asset Tagging & Collections
+- **Auto-Tagger** — Automatically classifies assets by ID range (e.g. "cursor", "button", "container"), dimensions, and data sources like `containers.txt`
+- **Editable Tag Rules** — Customize, add, disable, or remove auto-tag rules through the Tag & Collection Manager
+- **Manual Tags** — Add, rename, and remove user-defined tags on any asset
+- **Tag Suppression** — Remove auto-tags permanently; they won't return when the auto-tagger runs again
+- **Collections** — Organize assets into named groups with full CRUD management
+- **Multi-Select Bulk Ops** — Select multiple assets and tag or assign them to collections in one action
+- **Click-to-Filter** — Click any tag badge to instantly filter the Asset Browser by that tag
+
+### 📁 Shard Profiles
+- Per-shard `.gfprofile` stores client path, editor preferences, tags, collections, and auto-tag rules
+- Profiles load automatically on startup
+- All metadata persists across sessions
+
 ### ⚡ Editor Features
 - C# syntax highlighting (TextMate / DarkPlus theme)
 - Undo/redo with full command history
@@ -42,6 +56,7 @@ Generates complete C# gump classes for **5 server emulators**:
 - Drag-scrub numeric properties
 - Validation engine with Problems panel
 - Inline element renaming in the Layers panel
+- Scrollable, proportionally-scaled panel layout
 
 ## Getting Started
 
@@ -64,7 +79,8 @@ dotnet publish src/GumpForge.App -c Release -r win-x64 --self-contained true -p:
 2. Browse assets in the left panel, double-click or drag to place on canvas
 3. Edit properties in the right panel
 4. Copy generated code from the bottom Code panel
-5. **F1** for the built-in Quick Start Guide
+5. **Tags → Tag & Collection Manager** — Manage asset organization
+6. **F1** for the built-in Quick Start Guide
 
 ## Architecture
 
