@@ -71,6 +71,15 @@
         <Menu DockPanel.Dock="Top" Background="#16213e" Padding="4,2">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewDocumentCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="New from _Template...">
+                    <MenuItem Header="Simple Dialog" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[1]}"/>
+                    <MenuItem Header="Confirmation Dialog" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[2]}"/>
+                    <MenuItem Header="Tabbed Panel" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[3]}"/>
+                    <MenuItem Header="Scrollable List" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[4]}"/>
+                    <MenuItem Header="Vendor Menu" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[5]}"/>
+                    <MenuItem Header="Input Form" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[6]}"/>
+                    <MenuItem Header="Settings Panel" Command="{Binding NewFromTemplateCommand}" CommandParameter="{Binding Templates[7]}"/>
+                </MenuItem>
                 <MenuItem Header="_Open Project..." Command="{Binding OpenDocumentCommand}" InputGesture="Ctrl+O"/>
                 <Separator/>
                 <MenuItem Header="_Save" Command="{Binding SaveDocumentCommand}" InputGesture="Ctrl+S"/>
@@ -260,12 +269,13 @@
                     <!-- Filter controls -->
                     <Border DockPanel.Dock="Top" Padding="6,4" Background="#16213e">
                         <StackPanel Spacing="4">
-                            <TextBox PlaceholderText="Search by ID..." Text="{Binding AssetBrowser.FilterText}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
+                            <TextBox PlaceholderText="Search by ID, name, tag..." Text="{Binding AssetBrowser.FilterText}" FontSize="11" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
                             <Grid ColumnDefinitions="*,Auto,*">
                                 <TextBox PlaceholderText="From" Text="{Binding AssetBrowser.FilterIdStart}" FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
                                 <TextBlock Grid.Column="1" Text=" — " Foreground="#666" VerticalAlignment="Center" Margin="2,0"/>
                                 <TextBox Grid.Column="2" PlaceholderText="To" Text="{Binding AssetBrowser.FilterIdEnd}" FontSize="10" Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"/>
                             </Grid>
+                            <TextBox PlaceholderText="Filter by tag..." Text="{Binding AssetBrowser.FilterTag}" FontSize="10" Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
                             <CheckBox Content="Custom only" IsChecked="{Binding AssetBrowser.ShowCustomOnly}" Foreground="#999" FontSize="11"/>
                         </StackPanel>
                     </Border>
@@ -328,7 +338,7 @@
                                                 <Image Source="{Binding Bitmap}" Stretch="Uniform"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
-                                            <TextBlock Text="{Binding Label}" FontSize="9" Foreground="#e94560" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="9" Foreground="#e94560" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="72"/>
                                             <TextBlock Text="{Binding SizeLabel}" FontSize="7" Foreground="#555" HorizontalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>

@@ -111,6 +111,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         Title = $"GumpForge — {profile.ProfileName}";
         StatusMessage = $"Profile loaded: {profile.ProfileName}";
+
+        // Pass profile to asset browser for metadata search
+        AssetBrowser.Profile = profile;
     }
 
     private async Task TryAutoLoadAssetsAsync()
@@ -161,6 +164,30 @@ public partial class MainWindowViewModel : ViewModelBase
             + (mgr.HasHues ? $" | {mgr.HueCount} hues" : "")
             + (mgr.HasCliloc ? $" | {mgr.ClilocCount} cliloc" : "")
             + (mgr.HasFonts ? " | fonts" : "");
+
+        // Auto-tag assets if a profile is active
+        if (ActiveProfile is not null)
+        {
+            AutoTagger.TagAssets(ActiveProfile, path);
+            ApplyMetadataToThumbnails();
+        }
+    }
+
+    /// <summary>
+    /// Copies display names and tags from the active profile metadata onto thumbnails.
+    /// </summary>
+    private void ApplyMetadataToThumbnails()
+    {
+        if (ActiveProfile is null) return;
+
+        foreach (var thumb in AssetBrowser.AllThumbnails)
+        {
+            if (ActiveProfile.AssetMetadata.TryGetValue(thumb.GumpId, out var meta))
+            {
+                thumb.DisplayName = meta.DisplayName;
+                thumb.Tags = [..meta.Tags, ..meta.AutoTags];
+            }
+        }
     }
 
     [RelayCommand]
@@ -176,6 +203,28 @@ public partial class MainWindowViewModel : ViewModelBase
         Title = "GumpForge — Untitled";
     }
 
+    /// <summary>
+    /// Available gump templates for "New from Template".
+    /// </summary>
+    public List<GumpTemplate> Templates { get; } = GumpTemplateLibrary.GetTemplates();
+
+    [RelayCommand]
+    private void NewFromTemplate(GumpTemplate template)
+    {
+        if (template?.CreateDocument is null) return;
+
+        Document = template.CreateDocument();
+        Document.PropertyChanged += (_, _) => RegenerateCode();
+        UndoStack.Clear();
+        Selection.ClearSelection();
+        Canvas.Document = Document;
+        Layers.Document = Document;
+        CodePanel.Document = Document;
+        RegenerateCode();
+        Title = $"GumpForge — {template.Name}";
+        StatusMessage = $"Created from template: {template.Name}";
+    }
+
     [RelayCommand]
     private async Task SaveDocument()
     {
@@ -185,6 +234,11 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
         await GumpForge.Core.Serialization.ProjectSerializer.SaveAsync(Document, Document.FilePath);
+
+        // Also save the active profile if there is one
+        if (ActiveProfile is not null)
+            await GumpForge.Core.Serialization.ProfileSerializer.SaveAsync(ActiveProfile);
+
         Title = $"GumpForge — {Path.GetFileNameWithoutExtension(Document.FilePath)}";
     }
 
@@ -1300,6 +1354,11 @@ public partial class AssetBrowserViewModel : ViewModelBase
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private int _totalAssets;
     [ObservableProperty] private AssetThumbnail? _selectedThumbnail;
+    [ObservableProperty] private string _filterTag = string.Empty;
+    [ObservableProperty] private string? _filterCollectionId;
+
+    /// <summary>Reference to the active shard profile for metadata lookups.</summary>
+    public ShardProfile? Profile { get; set; }
 
     /// <summary>All loaded thumbnails (unfiltered master list).</summary>
     public ObservableCollection<AssetThumbnail> AllThumbnails { get; } = [];
@@ -1314,6 +1373,8 @@ public partial class AssetBrowserViewModel : ViewModelBase
     partial void OnFilterIdStartChanged(int value) => ApplyFilter();
     partial void OnFilterIdEndChanged(int value) => ApplyFilter();
     partial void OnShowCustomOnlyChanged(bool value) => ApplyFilter();
+    partial void OnFilterTagChanged(string value) => ApplyFilter();
+    partial void OnFilterCollectionIdChanged(string? value) => ApplyFilter();
 
     public void ApplyFilter()
     {
@@ -1325,19 +1386,58 @@ public partial class AssetBrowserViewModel : ViewModelBase
             if (thumb.GumpId < FilterIdStart || thumb.GumpId > FilterIdEnd)
                 continue;
 
-            // Text filter (hex or decimal ID match)
+            // Custom only (IDs >= 30000 are typically custom)
+            if (ShowCustomOnly && thumb.GumpId < 30000)
+                continue;
+
+            // Collection filter
+            if (!string.IsNullOrEmpty(FilterCollectionId) && Profile is not null)
+            {
+                var collection = Profile.Collections.FirstOrDefault(c => c.Id == FilterCollectionId);
+                if (collection is not null && !collection.AssetIds.Contains(thumb.GumpId))
+                    continue;
+            }
+
+            // Tag filter
+            if (!string.IsNullOrWhiteSpace(FilterTag) && Profile is not null)
+            {
+                var meta = Profile.AssetMetadata.GetValueOrDefault(thumb.GumpId);
+                if (meta is null)
+                    continue;
+                var tagMatch = meta.Tags.Concat(meta.AutoTags)
+                    .Any(t => t.Contains(FilterTag, StringComparison.OrdinalIgnoreCase));
+                if (!tagMatch)
+                    continue;
+            }
+
+            // Text filter — matches hex ID, decimal ID, display name, or tags
             if (!string.IsNullOrWhiteSpace(FilterText))
             {
                 var ft = FilterText.Trim();
                 bool matchesHex = thumb.Label.Contains(ft, StringComparison.OrdinalIgnoreCase);
                 bool matchesDec = thumb.GumpId.ToString().Contains(ft);
-                if (!matchesHex && !matchesDec)
+
+                // Also search display name and tags from profile
+                bool matchesMeta = false;
+                if (Profile is not null && Profile.AssetMetadata.TryGetValue(thumb.GumpId, out var meta2))
+                {
+                    matchesMeta = (!string.IsNullOrEmpty(meta2.DisplayName) &&
+                                   meta2.DisplayName.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
+                                  meta2.Tags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase)) ||
+                                  meta2.AutoTags.Any(t => t.Contains(ft, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Also check collection names
+                if (!matchesMeta && Profile is not null)
+                {
+                    matchesMeta = Profile.Collections
+                        .Where(c => c.AssetIds.Contains(thumb.GumpId))
+                        .Any(c => c.Name.Contains(ft, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!matchesHex && !matchesDec && !matchesMeta)
                     continue;
             }
-
-            // Custom only (IDs >= 30000 are typically custom)
-            if (ShowCustomOnly && thumb.GumpId < 30000)
-                continue;
 
             Thumbnails.Add(thumb);
         }
@@ -1349,6 +1449,100 @@ public partial class AssetBrowserViewModel : ViewModelBase
         if (SelectedThumbnail is not null)
             OnPlaceAsset?.Invoke(SelectedThumbnail);
     }
+
+    /// <summary>
+    /// Creates a new collection and adds it to the profile.
+    /// </summary>
+    [RelayCommand]
+    private void CreateCollection(string name)
+    {
+        if (Profile is null || string.IsNullOrWhiteSpace(name)) return;
+
+        var collection = new AssetCollection { Name = name.Trim() };
+        Profile.Collections.Add(collection);
+    }
+
+    /// <summary>
+    /// Adds the currently selected asset to a collection.
+    /// </summary>
+    [RelayCommand]
+    private void AddToCollection(string collectionId)
+    {
+        if (Profile is null || SelectedThumbnail is null || string.IsNullOrEmpty(collectionId)) return;
+
+        var collection = Profile.Collections.FirstOrDefault(c => c.Id == collectionId);
+        if (collection is not null && !collection.AssetIds.Contains(SelectedThumbnail.GumpId))
+        {
+            collection.AssetIds.Add(SelectedThumbnail.GumpId);
+        }
+    }
+
+    /// <summary>
+    /// Removes an asset from a collection.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveFromCollection(string collectionId)
+    {
+        if (Profile is null || SelectedThumbnail is null || string.IsNullOrEmpty(collectionId)) return;
+
+        var collection = Profile.Collections.FirstOrDefault(c => c.Id == collectionId);
+        collection?.AssetIds.Remove(SelectedThumbnail.GumpId);
+    }
+
+    /// <summary>
+    /// Adds a user tag to the selected asset.
+    /// </summary>
+    [RelayCommand]
+    private void AddTag(string tag)
+    {
+        if (Profile is null || SelectedThumbnail is null || string.IsNullOrWhiteSpace(tag)) return;
+
+        var cleanTag = tag.Trim().ToLowerInvariant();
+        if (!Profile.AssetMetadata.TryGetValue(SelectedThumbnail.GumpId, out var meta))
+        {
+            meta = new AssetMeta { GumpId = SelectedThumbnail.GumpId };
+            Profile.AssetMetadata[SelectedThumbnail.GumpId] = meta;
+        }
+
+        if (!meta.Tags.Contains(cleanTag))
+        {
+            meta.Tags.Add(cleanTag);
+            SelectedThumbnail.Tags = [..meta.Tags, ..meta.AutoTags];
+        }
+    }
+
+    /// <summary>
+    /// Removes a user tag from the selected asset.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveTag(string tag)
+    {
+        if (Profile is null || SelectedThumbnail is null || string.IsNullOrWhiteSpace(tag)) return;
+
+        if (Profile.AssetMetadata.TryGetValue(SelectedThumbnail.GumpId, out var meta))
+        {
+            meta.Tags.Remove(tag.Trim().ToLowerInvariant());
+            SelectedThumbnail.Tags = [..meta.Tags, ..meta.AutoTags];
+        }
+    }
+
+    /// <summary>
+    /// Sets a display name for the selected asset.
+    /// </summary>
+    [RelayCommand]
+    private void SetDisplayName(string name)
+    {
+        if (Profile is null || SelectedThumbnail is null) return;
+
+        if (!Profile.AssetMetadata.TryGetValue(SelectedThumbnail.GumpId, out var meta))
+        {
+            meta = new AssetMeta { GumpId = SelectedThumbnail.GumpId };
+            Profile.AssetMetadata[SelectedThumbnail.GumpId] = meta;
+        }
+
+        meta.DisplayName = name?.Trim() ?? string.Empty;
+        SelectedThumbnail.DisplayName = meta.DisplayName;
+    }
 }
 
 public class AssetThumbnail
@@ -1359,6 +1553,15 @@ public class AssetThumbnail
     public string Label => $"0x{GumpId:X4}";
     public string SizeLabel => $"{Width}×{Height}";
     public byte[]? PixelData { get; init; }
+
+    /// <summary>User-assigned display name from profile metadata.</summary>
+    public string? DisplayName { get; set; }
+
+    /// <summary>Combined tags (user + auto) for display.</summary>
+    public List<string> Tags { get; set; } = [];
+
+    /// <summary>Display label: uses DisplayName if set, otherwise hex ID.</summary>
+    public string DisplayLabel => !string.IsNullOrEmpty(DisplayName) ? DisplayName : Label;
 
     private Avalonia.Media.Imaging.WriteableBitmap? _bitmap;
     public Avalonia.Media.Imaging.WriteableBitmap? Bitmap
