@@ -167,6 +167,62 @@ public partial class MainWindow : Window
         }
     }
 
+    // ── Asset Metadata Management ──────────────────────────────
+
+    /// <summary>
+    /// Save display name when the text box loses focus.
+    /// </summary>
+    private void AssetDisplayName_LostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm && sender is TextBox tb)
+        {
+            vm.AssetBrowser.SetDisplayNameCommand.Execute(tb.Text ?? string.Empty);
+        }
+    }
+
+    /// <summary>
+    /// Add a user tag to the currently selected asset.
+    /// </summary>
+    private void AddTag_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var input = this.FindControl<TextBox>("NewTagInput");
+        if (input is null || string.IsNullOrWhiteSpace(input.Text)) return;
+
+        vm.AssetBrowser.AddTagCommand.Execute(input.Text);
+        input.Text = string.Empty;
+    }
+
+    /// <summary>
+    /// Create a new collection.
+    /// </summary>
+    private void CreateCollection_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var input = this.FindControl<TextBox>("NewCollectionInput");
+        if (input is null || string.IsNullOrWhiteSpace(input.Text)) return;
+
+        vm.AssetBrowser.CreateCollectionCommand.Execute(input.Text);
+        input.Text = string.Empty;
+    }
+
+    /// <summary>
+    /// Toggle asset membership in a collection when checkbox is clicked.
+    /// </summary>
+    private void CollectionCheckbox_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (sender is not CheckBox cb || cb.Tag is not string collectionId) return;
+        if (vm.AssetBrowser.SelectedThumbnail is null) return;
+
+        if (cb.IsChecked == true)
+            vm.AssetBrowser.AddToCollectionCommand.Execute(collectionId);
+        else
+            vm.AssetBrowser.RemoveFromCollectionCommand.Execute(collectionId);
+    }
+
     /// <summary>
     /// Clicking an element in the Layers panel selects it on the canvas.
     /// </summary>
@@ -397,5 +453,31 @@ public partial class MainWindow : Window
     {
         var help = new HelpWindow();
         help.ShowDialog(this);
+    }
+
+    // ── Profile & Tagging Tools ────────────────────────────────
+
+    /// <summary>
+    /// Save the active shard profile to disk.
+    /// </summary>
+    private async void SaveProfile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm && vm.ActiveProfile is not null)
+        {
+            await GumpForge.Core.Serialization.ProfileSerializer.SaveAsync(vm.ActiveProfile);
+            vm.StatusMessage = $"✅ Profile saved: {vm.ActiveProfile.ProfileName}";
+        }
+    }
+
+    /// <summary>
+    /// Re-run the auto-tagger on all loaded assets.
+    /// </summary>
+    private void RunAutoTagger_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm && vm.ActiveProfile is not null)
+        {
+            GumpForge.App.Services.AutoTagger.TagAssets(vm.ActiveProfile, vm.ClientDataPath);
+            vm.StatusMessage = $"✅ Auto-tagged {vm.ActiveProfile.AssetMetadata.Count} assets";
+        }
     }
 }

@@ -154,8 +154,11 @@
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Apply Code to Canvas" Command="{Binding ApplyCodeCommand}"/>
                 <Separator/>
-                <MenuItem Header="_Import Images..."/>
+                <MenuItem Header="_Import Images..." Command="{Binding ImportCustomAssetCommand}"/>
                 <MenuItem Header="_Export Code..."/>
+                <Separator/>
+                <MenuItem Header="Save _Profile" Click="SaveProfile_Click"/>
+                <MenuItem Header="_Run Auto-Tagger" Click="RunAutoTagger_Click"/>
                 <Separator/>
                 <MenuItem Header="_Validation"/>
             </MenuItem>
@@ -296,6 +299,96 @@
                                     Background="#0f3460" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"/>
                             <Button Content="📥 Import Images..." HorizontalAlignment="Stretch" Background="#e94560" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"
                                     Command="{Binding ImportCustomAssetCommand}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── Asset Metadata Panel ── -->
+                    <Border DockPanel.Dock="Bottom" Padding="6,4" Background="#12122a"
+                            IsVisible="{Binding AssetBrowser.SelectedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="🏷️ Asset Metadata" FontWeight="Bold" FontSize="11" Foreground="#e94560"/>
+
+                            <!-- Display Name -->
+                            <Grid ColumnDefinitions="50,*">
+                                <TextBlock Text="Name:" Foreground="#888" FontSize="10" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1" Name="AssetDisplayNameInput"
+                                         Text="{Binding AssetBrowser.SelectedThumbnail.DisplayName}"
+                                         PlaceholderText="Display name..." FontSize="10"
+                                         Background="#0a0a1a" Foreground="#ccc" BorderBrush="#333"
+                                         LostFocus="AssetDisplayName_LostFocus"/>
+                            </Grid>
+
+                            <!-- Current Tags -->
+                            <TextBlock Text="Tags:" Foreground="#888" FontSize="10"/>
+                            <ItemsControl ItemsSource="{Binding AssetBrowser.SelectedThumbnail.Tags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1a3a2a" CornerRadius="3" Padding="4,1" Margin="1">
+                                            <TextBlock Text="{Binding}" Foreground="#aad6a5" FontSize="9"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Add Tag -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="NewTagInput" PlaceholderText="Add tag..." FontSize="10"
+                                         Background="#0a0a1a" Foreground="#aad6a5" BorderBrush="#333"/>
+                                <Button Grid.Column="1" Content="+" FontSize="10" Padding="6,2" Margin="2,0,0,0"
+                                        Background="#2ed573" Foreground="#0a0a1a" FontWeight="Bold" CornerRadius="3"
+                                        Click="AddTag_Click" ToolTip.Tip="Add tag"/>
+                            </Grid>
+
+                            <!-- Collections assignment -->
+                            <TextBlock Text="Collections:" Foreground="#888" FontSize="10" Margin="0,4,0,0"/>
+                            <ItemsControl ItemsSource="{Binding ActiveProfile.Collections}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" FontSize="10" Foreground="#a5c8d6"
+                                                  IsChecked="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AssetBrowser.SelectedThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                  Click="CollectionCheckbox_Click" Tag="{Binding Id}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── Collections Management Panel ── -->
+                    <Border DockPanel.Dock="Bottom" Padding="6,4" Background="#16213e"
+                            IsVisible="{Binding ActiveProfile, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="📁 Collections" FontWeight="Bold" FontSize="11" Foreground="#e94560"/>
+
+                            <!-- Existing collections -->
+                            <ItemsControl ItemsSource="{Binding ActiveProfile.Collections}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0a0a1a" CornerRadius="3" Padding="4,3" Margin="0,1">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding Name}" Foreground="#a5c8d6" FontSize="10"
+                                                           VerticalAlignment="Center" Cursor="Hand"
+                                                           ToolTip.Tip="Click to filter by this collection"/>
+                                                <TextBlock Grid.Column="1" Foreground="#555" FontSize="9" VerticalAlignment="Center"
+                                                           Text="{Binding AssetIds.Count, StringFormat={}{0} items}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Create new collection -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="NewCollectionInput" PlaceholderText="New collection..." FontSize="10"
+                                         Background="#0a0a1a" Foreground="#a5c8d6" BorderBrush="#333"/>
+                                <Button Grid.Column="1" Content="+" FontSize="10" Padding="6,2" Margin="2,0,0,0"
+                                        Background="#54a0ff" Foreground="#0a0a1a" FontWeight="Bold" CornerRadius="3"
+                                        Click="CreateCollection_Click" ToolTip.Tip="Create collection"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
