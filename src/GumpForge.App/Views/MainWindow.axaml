@@ -257,7 +257,7 @@
         </Border>
 
         <!-- ═══════════ MAIN CONTENT ═══════════ -->
-        <Grid ColumnDefinitions="240,4,*,4,260" RowDefinitions="*,4,220">
+        <Grid ColumnDefinitions="240,4,*,4,260" RowDefinitions="2*,4,*">
 
             <!-- ── LEFT: Asset Browser ── -->
             <Border Grid.Column="0" Grid.RowSpan="3" Classes="panel" Margin="4,4,0,4">
