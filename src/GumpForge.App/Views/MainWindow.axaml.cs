@@ -39,18 +39,20 @@ public partial class MainWindow : Window
         var editor = this.FindControl<TextEditor>("ServUoEditor");
         if (editor is null) return;
 
+        // Initialize TextMate with Dark+ theme
+        RegistryOptions? registryOptions = null;
+        string? csharpScopeName = null;
+
         try
         {
-            // Initialize TextMate with Dark+ theme for VS Code-like highlighting
-            var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
+            registryOptions = new RegistryOptions(ThemeName.DarkPlus);
             _textMateInstallation = editor.InstallTextMate(registryOptions);
 
-            // Set C# grammar for syntax highlighting
             var csharpLanguage = registryOptions.GetLanguageByExtension(".cs");
             if (csharpLanguage is not null)
             {
-                string scopeName = registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
-                _textMateInstallation.SetGrammar(scopeName);
+                csharpScopeName = registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
+                _textMateInstallation.SetGrammar(csharpScopeName);
             }
         }
         catch
@@ -58,29 +60,70 @@ public partial class MainWindow : Window
             // TextMate setup failed — editor still works, just no highlighting
         }
 
-        // Style the line number margin
-        editor.Foreground = Avalonia.Media.Brushes.White;
-        editor.LineNumbersForeground = new Avalonia.Media.SolidColorBrush(
-            Avalonia.Media.Color.Parse("#555"));
+        // Style the ServUO editor
+        StyleEditor(editor);
 
-        // Sync ViewModel → Editor when GeneratedCode changes
+        // Initialize read-only editors with highlighting
+        var readOnlyEditors = new (string Name, string Property)[]
+        {
+            ("RunUoEditor", nameof(MainWindowViewModel.RunUoCode)),
+            ("ModernUoEditor", nameof(MainWindowViewModel.ModernUoCode)),
+            ("SphereEditor", nameof(MainWindowViewModel.SphereCode)),
+            ("ClassicAssistEditor", nameof(MainWindowViewModel.ClassicAssistCode)),
+        };
+
+        foreach (var (name, property) in readOnlyEditors)
+        {
+            var roEditor = this.FindControl<TextEditor>(name);
+            if (roEditor is null) continue;
+
+            // Apply TextMate highlighting
+            if (registryOptions is not null && csharpScopeName is not null)
+            {
+                try
+                {
+                    var tm = roEditor.InstallTextMate(registryOptions);
+                    tm.SetGrammar(csharpScopeName);
+                }
+                catch { /* non-critical */ }
+            }
+
+            StyleEditor(roEditor);
+        }
+
+        // Sync ViewModel → Editors when code properties change
         if (DataContext is MainWindowViewModel vm)
         {
-            // Initial sync
+            // Initial sync for ServUO
             editor.Text = vm.GeneratedCode ?? string.Empty;
 
             // Listen for ViewModel code changes
             vm.PropertyChanged += (_, args) =>
             {
-                if (args.PropertyName == nameof(vm.GeneratedCode) && !_isUpdatingEditor)
-                {
-                    _isUpdatingEditor = true;
+                if (_isUpdatingEditor) return;
+                _isUpdatingEditor = true;
+
+                if (args.PropertyName == nameof(vm.GeneratedCode))
                     editor.Text = vm.GeneratedCode ?? string.Empty;
-                    _isUpdatingEditor = false;
+
+                // Sync read-only editors
+                foreach (var (name, property) in readOnlyEditors)
+                {
+                    if (args.PropertyName == property)
+                    {
+                        var roEditor = this.FindControl<TextEditor>(name);
+                        if (roEditor is not null)
+                        {
+                            var value = typeof(MainWindowViewModel).GetProperty(property)?.GetValue(vm) as string;
+                            roEditor.Text = value ?? string.Empty;
+                        }
+                    }
                 }
+
+                _isUpdatingEditor = false;
             };
 
-            // Listen for editor text changes → ViewModel
+            // Listen for ServUO editor text changes → ViewModel (editable)
             editor.TextChanged += (_, _) =>
             {
                 if (!_isUpdatingEditor)
@@ -91,6 +134,13 @@ public partial class MainWindow : Window
                 }
             };
         }
+    }
+
+    private static void StyleEditor(TextEditor editor)
+    {
+        editor.Foreground = Avalonia.Media.Brushes.White;
+        editor.LineNumbersForeground = new Avalonia.Media.SolidColorBrush(
+            Avalonia.Media.Color.Parse("#555"));
     }
 
     /// <summary>
@@ -210,20 +260,80 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel vm) return;
 
-        // Don't process shortcuts if a TextBox is focused
-        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox)
-            return;
-
+        // F-key shortcuts work even when TextBox is focused
         switch (e.Key)
         {
-            // F5 = export PNG
+            case Key.F1:
+                Help_Click(sender, e);
+                e.Handled = true;
+                return;
             case Key.F5:
                 _ = ExportCanvasAsPng(vm);
                 e.Handled = true;
-                break;
-            // F6 = export to MUL
+                return;
             case Key.F6:
                 vm.ExportToMulCommand.Execute(null);
+                e.Handled = true;
+                return;
+        }
+
+        // Don't process other shortcuts if a TextBox or TextEditor is focused
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        if (focused is TextBox || focused is AvaloniaEdit.TextEditor)
+            return;
+
+        bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        switch (e.Key)
+        {
+            // Delete key
+            case Key.Delete:
+                vm.DeleteSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            // Ctrl+Z/Y — Undo/Redo
+            case Key.Z when ctrl:
+                vm.UndoCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Y when ctrl:
+                vm.RedoCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            // Ctrl+C/X/V/D — Clipboard
+            case Key.C when ctrl:
+                vm.CopySelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.X when ctrl:
+                vm.CutSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.V when ctrl:
+                vm.PasteElementsCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.D when ctrl:
+                vm.DuplicateSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            // Ctrl+A — Select All
+            case Key.A when ctrl:
+                vm.SelectAllCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            // Ctrl+G / Ctrl+Shift+G — Group/Ungroup
+            case Key.G when ctrl && shift:
+                vm.UngroupSelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.G when ctrl:
+                vm.GroupSelectedCommand.Execute(null);
                 e.Handled = true;
                 break;
         }

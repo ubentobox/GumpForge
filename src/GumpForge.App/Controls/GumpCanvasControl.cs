@@ -268,7 +268,7 @@ public class GumpCanvasControl : Control
                     DrawGumpArt(context, img.GumpId, elementRect, "#2a4a3c", $"IMG 0x{img.GumpId:X4}", isSelected, mgr, zoom, img.Hue);
                     break;
                 case GumpImageTiled tiled:
-                    DrawGumpArt(context, tiled.GumpId, elementRect, "#2a4a3c", $"Tiled 0x{tiled.GumpId:X4}", isSelected, mgr, zoom);
+                    DrawTiledGumpArt(context, tiled.GumpId, elementRect, isSelected, mgr, zoom);
                     break;
                 case GumpButton btn:
                     DrawGumpArt(context, btn.NormalId, elementRect, "#5c1a3a", $"BTN {btn.ButtonId}", isSelected, mgr, zoom);
@@ -417,6 +417,85 @@ public class GumpCanvasControl : Control
                 double tx = rect.X + (rect.Width - text.Width) / 2;
                 double ty = rect.Y + (rect.Height - text.Height) / 2;
                 context.DrawText(text, new Point(tx, ty));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws a gump art bitmap tiled (repeated) to fill the target rect.
+    /// This matches UO's AddImageTiled behavior.
+    /// </summary>
+    private void DrawTiledGumpArt(DrawingContext context, int gumpId, Rect rect, bool selected,
+        AssetManager mgr, double zoom)
+    {
+        var bitmap = mgr.IsLoaded ? mgr.GetBitmap(gumpId) : null;
+
+        if (bitmap is not null)
+        {
+            double srcW = bitmap.Size.Width;
+            double srcH = bitmap.Size.Height;
+
+            if (srcW > 0 && srcH > 0)
+            {
+                // Clip to element bounds
+                using (context.PushClip(rect))
+                {
+                    // Tile the image across the rect
+                    for (double ty = rect.Top; ty < rect.Bottom; ty += srcH * zoom)
+                    {
+                        for (double tx = rect.Left; tx < rect.Right; tx += srcW * zoom)
+                        {
+                            double drawW = Math.Min(srcW * zoom, rect.Right - tx);
+                            double drawH = Math.Min(srcH * zoom, rect.Bottom - ty);
+                            var tileRect = new Rect(tx, ty, drawW, drawH);
+
+                            // For partial tiles at the edges, use a source rect
+                            if (drawW < srcW * zoom || drawH < srcH * zoom)
+                            {
+                                var srcRect = new Rect(0, 0, drawW / zoom, drawH / zoom);
+                                context.DrawImage(bitmap, srcRect, tileRect);
+                            }
+                            else
+                            {
+                                context.DrawImage(bitmap, tileRect);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Fallback: colored box with tiled pattern indication
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#2a4a3c")), rect);
+
+            // Draw a subtle grid pattern to indicate tiling
+            var tilePen = new Pen(new SolidColorBrush(Color.FromArgb(60, 200, 200, 200)), 1,
+                new DashStyle([2, 2], 0));
+            double patternStep = 30 * zoom;
+            for (double x = rect.Left + patternStep; x < rect.Right; x += patternStep)
+                context.DrawLine(tilePen, new Point(x, rect.Top), new Point(x, rect.Bottom));
+            for (double y = rect.Top + patternStep; y < rect.Bottom; y += patternStep)
+                context.DrawLine(tilePen, new Point(rect.Left, y), new Point(rect.Right, y));
+        }
+
+        // Border and label
+        var borderPen = new Pen(new SolidColorBrush(Color.Parse(selected ? "#e94560" : "#555")), selected ? 2 : 1);
+        context.DrawRectangle(borderPen, rect);
+
+        if (bitmap is null || selected)
+        {
+            var typeface = new Typeface("Inter, Segoe UI");
+            var fontSize = Math.Min(11, rect.Height / 2);
+            if (fontSize > 5)
+            {
+                var label = $"Tiled 0x{gumpId:X4}";
+                var text = new FormattedText(label, CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight, typeface, fontSize,
+                    new SolidColorBrush(Color.Parse(selected ? "#fff" : "#bbb")));
+                double tx = rect.X + (rect.Width - text.Width) / 2;
+                double txy = rect.Y + (rect.Height - text.Height) / 2;
+                context.DrawText(text, new Point(tx, txy));
             }
         }
     }

@@ -646,15 +646,27 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (Selection.SelectedElements.Count < 3) return;
         var sorted = Selection.SelectedElements.OrderBy(e => e.X).ToList();
-        int minX = sorted.First().X;
-        int maxX = sorted.Last().X;
-        double spacing = (double)(maxX - minX) / (sorted.Count - 1);
+
+        // Calculate the total span from leftmost left-edge to rightmost right-edge
+        int spanLeft = sorted.First().X;
+        int spanRight = sorted.Max(e => e.X + e.Width);
+        int totalSpan = spanRight - spanLeft;
+
+        // Calculate total width consumed by all elements
+        int totalWidths = sorted.Sum(e => e.Width);
+
+        // Total gap space to distribute among (n-1) gaps
+        double totalGap = totalSpan - totalWidths;
+        double gapSize = totalGap / (sorted.Count - 1);
+
         var commands = new List<IEditCommand>();
-        for (int i = 1; i < sorted.Count - 1; i++)
+        double currentX = spanLeft;
+        for (int i = 0; i < sorted.Count; i++)
         {
-            int newX = minX + (int)(spacing * i);
-            if (sorted[i].X != newX)
+            int newX = (int)Math.Round(currentX);
+            if (i > 0 && i < sorted.Count - 1 && sorted[i].X != newX) // Don't move first/last
                 commands.Add(new MoveElementCommand(sorted[i], newX, sorted[i].Y));
+            currentX += sorted[i].Width + gapSize;
         }
         if (commands.Count > 0) { UndoStack.Execute(new BatchCommand(commands, "Distribute Horizontally")); RegenerateCode(); }
     }
@@ -664,15 +676,27 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (Selection.SelectedElements.Count < 3) return;
         var sorted = Selection.SelectedElements.OrderBy(e => e.Y).ToList();
-        int minY = sorted.First().Y;
-        int maxY = sorted.Last().Y;
-        double spacing = (double)(maxY - minY) / (sorted.Count - 1);
+
+        // Calculate the total span from topmost top-edge to bottommost bottom-edge
+        int spanTop = sorted.First().Y;
+        int spanBottom = sorted.Max(e => e.Y + e.Height);
+        int totalSpan = spanBottom - spanTop;
+
+        // Calculate total height consumed by all elements
+        int totalHeights = sorted.Sum(e => e.Height);
+
+        // Total gap space to distribute among (n-1) gaps
+        double totalGap = totalSpan - totalHeights;
+        double gapSize = totalGap / (sorted.Count - 1);
+
         var commands = new List<IEditCommand>();
-        for (int i = 1; i < sorted.Count - 1; i++)
+        double currentY = spanTop;
+        for (int i = 0; i < sorted.Count; i++)
         {
-            int newY = minY + (int)(spacing * i);
-            if (sorted[i].Y != newY)
+            int newY = (int)Math.Round(currentY);
+            if (i > 0 && i < sorted.Count - 1 && sorted[i].Y != newY) // Don't move first/last
                 commands.Add(new MoveElementCommand(sorted[i], sorted[i].X, newY));
+            currentY += sorted[i].Height + gapSize;
         }
         if (commands.Count > 0) { UndoStack.Execute(new BatchCommand(commands, "Distribute Vertically")); RegenerateCode(); }
     }
@@ -833,6 +857,9 @@ public partial class MainWindowViewModel : ViewModelBase
         var result = parser.Parse(code);
         if (result.Document is not null)
         {
+            // Resolve element dimensions from actual gump art
+            ResolveElementDimensions(result.Document);
+
             // Replace the document entirely
             Document = result.Document;
             Document.PropertyChanged += (_, _) => RegenerateCode();
@@ -1058,6 +1085,61 @@ public partial class MainWindowViewModel : ViewModelBase
             Width = thumb.Width,
             Height = thumb.Height
         });
+    }
+
+    /// <summary>
+    /// Resolves hardcoded default element dimensions to actual gump art sizes.
+    /// Called after code parsing to fix 44x44, 40x40, 30x30 placeholder sizes.
+    /// </summary>
+    private void ResolveElementDimensions(GumpDocument doc)
+    {
+        var mgr = AssetManager.Instance;
+        if (!mgr.IsLoaded) return;
+
+        foreach (var page in doc.Pages)
+        {
+            foreach (var element in page.Elements)
+            {
+                int gumpId = -1;
+                bool isDefaultSize = false;
+
+                switch (element)
+                {
+                    case GumpImage img:
+                        gumpId = img.GumpId;
+                        // The parser uses 44x44 as default for AddImage
+                        isDefaultSize = img.Width == 44 && img.Height == 44;
+                        break;
+                    case GumpButton btn:
+                        gumpId = btn.NormalId;
+                        // The parser uses 40x40 as default for AddButton
+                        isDefaultSize = btn.Width == 40 && btn.Height == 40;
+                        break;
+                    case GumpCheck chk:
+                        gumpId = chk.InactiveId;
+                        isDefaultSize = chk.Width == 30 && chk.Height == 30;
+                        break;
+                    case GumpRadio radio:
+                        gumpId = radio.InactiveId;
+                        isDefaultSize = radio.Width == 30 && radio.Height == 30;
+                        break;
+                    case GumpItem item:
+                        gumpId = item.ItemId;
+                        isDefaultSize = item.Width == 44 && item.Height == 44;
+                        break;
+                }
+
+                if (gumpId >= 0 && isDefaultSize)
+                {
+                    var dims = mgr.GetDimensions(gumpId);
+                    if (dims is { Width: > 0, Height: > 0 })
+                    {
+                        element.Width = dims.Value.Width;
+                        element.Height = dims.Value.Height;
+                    }
+                }
+            }
+        }
     }
 
     // ── Page management ──────────────────────────────────────────

@@ -284,7 +284,8 @@
                             <Button Content="📌 Place on Canvas" HorizontalAlignment="Stretch"
                                     Command="{Binding AssetBrowser.PlaceSelectedAssetCommand}"
                                     Background="#0f3460" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"/>
-                            <Button Content="📥 Import Images..." HorizontalAlignment="Stretch" Background="#e94560" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"/>
+                            <Button Content="📥 Import Images..." HorizontalAlignment="Stretch" Background="#e94560" Foreground="White" FontWeight="Bold" CornerRadius="3" Padding="0,6"
+                                    Command="{Binding ImportCustomAssetCommand}"/>
                         </StackPanel>
                     </Border>
 
@@ -673,40 +674,44 @@
                                            VerticalScrollBarVisibility="Auto"/>
                         </TabItem>
                         <TabItem Header="RunUO">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
-                                <TextBox Text="{Binding RunUoCode, Mode=OneWay}" IsReadOnly="True"
-                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                         FontSize="12" Foreground="#c8d6e5" Padding="8"
-                                         Background="#0a0a1a" TextWrapping="NoWrap"
-                                         AcceptsReturn="True" BorderThickness="0"/>
-                            </ScrollViewer>
+                            <ae:TextEditor Name="RunUoEditor"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Padding="8"
+                                           Background="#0a0a1a"
+                                           IsReadOnly="True"
+                                           ShowLineNumbers="True"
+                                           HorizontalScrollBarVisibility="Auto"
+                                           VerticalScrollBarVisibility="Auto"/>
                         </TabItem>
                         <TabItem Header="ModernUO">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
-                                <TextBox Text="{Binding ModernUoCode, Mode=OneWay}" IsReadOnly="True"
-                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                         FontSize="12" Foreground="#c8d6e5" Padding="8"
-                                         Background="#0a0a1a" TextWrapping="NoWrap"
-                                         AcceptsReturn="True" BorderThickness="0"/>
-                            </ScrollViewer>
+                            <ae:TextEditor Name="ModernUoEditor"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Padding="8"
+                                           Background="#0a0a1a"
+                                           IsReadOnly="True"
+                                           ShowLineNumbers="True"
+                                           HorizontalScrollBarVisibility="Auto"
+                                           VerticalScrollBarVisibility="Auto"/>
                         </TabItem>
                         <TabItem Header="Sphere">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
-                                <TextBox Text="{Binding SphereCode, Mode=OneWay}" IsReadOnly="True"
-                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                         FontSize="12" Foreground="#aad6a5" Padding="8"
-                                         Background="#0a0a1a" TextWrapping="NoWrap"
-                                         AcceptsReturn="True" BorderThickness="0"/>
-                            </ScrollViewer>
+                            <ae:TextEditor Name="SphereEditor"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Padding="8"
+                                           Background="#0a0a1a"
+                                           IsReadOnly="True"
+                                           ShowLineNumbers="True"
+                                           HorizontalScrollBarVisibility="Auto"
+                                           VerticalScrollBarVisibility="Auto"/>
                         </TabItem>
                         <TabItem Header="ClassicAssist">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
-                                <TextBox Text="{Binding ClassicAssistCode, Mode=OneWay}" IsReadOnly="True"
-                                         FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                         FontSize="12" Foreground="#a5c8d6" Padding="8"
-                                         Background="#0a0a1a" TextWrapping="NoWrap"
-                                         AcceptsReturn="True" BorderThickness="0"/>
-                            </ScrollViewer>
+                            <ae:TextEditor Name="ClassicAssistEditor"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Padding="8"
+                                           Background="#0a0a1a"
+                                           IsReadOnly="True"
+                                           ShowLineNumbers="True"
+                                           HorizontalScrollBarVisibility="Auto"
+                                           VerticalScrollBarVisibility="Auto"/>
                         </TabItem>
                         <TabItem>
                             <TabItem.Header>
