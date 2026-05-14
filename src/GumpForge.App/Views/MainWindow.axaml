@@ -626,7 +626,7 @@
                         <Border DockPanel.Dock="Top" Classes="panel-header">
                             <TextBlock Text="⚙ Properties" FontWeight="Bold" FontSize="13" Foreground="#e94560"/>
                         </Border>
-                        <ScrollViewer Padding="8">
+                        <ScrollViewer Padding="8" VerticalScrollBarVisibility="Auto">
                             <StackPanel Spacing="6">
                                 <!-- Selected element properties -->
                                 <StackPanel IsVisible="{Binding Selection.HasSingleSelection}" Spacing="4">
@@ -725,6 +725,9 @@
                                 <CheckBox Content="Closable" IsChecked="{Binding Document.IsClosable}" Foreground="#999" FontSize="11"/>
                                 <CheckBox Content="Disposable" IsChecked="{Binding Document.IsDisposable}" Foreground="#999" FontSize="11"/>
                                 <CheckBox Content="Resizable" IsChecked="{Binding Document.IsResizable}" Foreground="#999" FontSize="11"/>
+
+                                <!-- Bottom spacer ensures final controls can scroll fully above panel edge -->
+                                <Border Height="28" Background="Transparent"/>
                             </StackPanel>
                         </ScrollViewer>
                     </DockPanel>
