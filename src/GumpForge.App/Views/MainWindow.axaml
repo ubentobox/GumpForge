@@ -177,6 +177,14 @@
                 <Separator/>
                 <MenuItem Header="_Validation"/>
             </MenuItem>
+            <MenuItem Header="_Server">
+                <MenuItem Header="_Connect..." Command="{Binding ConnectToServerCommand}"/>
+                <MenuItem Header="_Disconnect" Command="{Binding DisconnectFromServerCommand}" IsEnabled="{Binding IsLinkConnected}"/>
+                <Separator/>
+                <MenuItem Header="Target _Any ([gf)" Command="{Binding RequestTargetAnyCommand}" IsEnabled="{Binding IsLinkConnected}"/>
+                <MenuItem Header="Target _Player" Command="{Binding RequestTargetPlayerCommand}" IsEnabled="{Binding IsLinkConnected}"/>
+                <MenuItem Header="Target _Item" Command="{Binding RequestTargetItemCommand}" IsEnabled="{Binding IsLinkConnected}"/>
+            </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_Quick Start Guide" Click="Help_Click" InputGesture="F1"/>
                 <Separator/>
@@ -210,6 +218,25 @@
                 <Button Classes="toolbar-btn" Content="📦 MUL" Command="{Binding ExportToMulCommand}" ToolTip.Tip="Export gump to MUL files (F6)"/>
                 <Button Classes="toolbar-btn" Content="🖼️ Import" Command="{Binding ImportCustomAssetCommand}" ToolTip.Tip="Import PNG as custom gump art"/>
                 <Button Classes="toolbar-btn" Content="🎭 Demo" Command="{Binding AddSampleElementsCommand}" ToolTip.Tip="Add sample elements" Background="#e94560" Foreground="White"/>
+                <Border Width="1" Background="#333" Margin="4,2"/>
+
+                <!-- Mode Toggle -->
+                <ToggleButton Classes="toolbar-btn" IsChecked="{Binding IsSimulationMode}" ToolTip.Tip="Toggle between Edit and Play/Simulate modes"
+                              Content="{Binding ModeText}" Background="{Binding ModeBackground}" Foreground="{Binding ModeForeground}"/>
+
+                <Border Width="1" Background="#333" Margin="4,2"/>
+
+                <!-- Player Context -->
+                <TextBlock Text="Player Context:" Foreground="#a0a0a0" FontSize="11" VerticalAlignment="Center" Margin="6,0,4,0"/>
+                <ComboBox ItemsSource="{Binding PlayerContexts}" SelectedItem="{Binding SelectedPlayerContext}" Width="150" Height="24" FontSize="11" VerticalAlignment="Center" Background="#16213e" Foreground="#c8d6e5">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="⚙" Command="{Binding ManagePlayerContextsCommand}" ToolTip.Tip="Manage Player Context Profiles" Classes="toolbar-btn" Margin="4,0,0,0" Height="24" Width="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                
                 <Border Width="1" Background="#333" Margin="4,2"/>
                 <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="4,0" Foreground="#888"/>
                 <TextBlock Text="{Binding Canvas.Zoom, StringFormat={}{0:P0}}" VerticalAlignment="Center" Foreground="#e94560" FontWeight="Bold"/>
@@ -940,9 +967,94 @@
                                 </DockPanel>
                             </Grid>
                         </TabItem>
+                        
+                        <!-- Live Link & Simulation tab -->
+                        <TabItem Header="🔌 Live Link &amp; Sim">
+                            <Grid ColumnDefinitions="*,4,1.5*,4,*">
+                                <!-- Left column: Connection control + Active subject player context -->
+                                <DockPanel Margin="4">
+                                    <StackPanel DockPanel.Dock="Top" Spacing="6">
+                                        <Border Background="#16213e" BorderBrush="#1a1a40" BorderThickness="1" CornerRadius="4" Padding="8">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Server Connection" FontSize="11" FontWeight="Bold" Foreground="#e94560"/>
+                                                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                                    <TextBlock Grid.Column="0" Text="{Binding LinkConnectionStatusText}" FontSize="11" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                    <Button Grid.Column="1" Content="{Binding LinkConnectionButtonText}" Command="{Binding ToggleLinkConnectionCommand}" FontSize="10" Padding="8,4" Background="#0f3460" Foreground="White" CornerRadius="3"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="#16213e" BorderBrush="#1a1a40" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,4,0,0">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="In-Game Actions" FontSize="11" FontWeight="Bold" Foreground="#e94560"/>
+                                                <Button Content="🎯 Target Any ([gf)" Command="{Binding RequestTargetAnyCommand}" IsEnabled="{Binding IsLinkConnected}" Classes="toolbar-btn" HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                                <Button Content="👤 Target Player" Command="{Binding RequestTargetPlayerCommand}" IsEnabled="{Binding IsLinkConnected}" Classes="toolbar-btn" HorizontalAlignment="Stretch"/>
+                                                <Button Content="📦 Target Item" Command="{Binding RequestTargetItemCommand}" IsEnabled="{Binding IsLinkConnected}" Classes="toolbar-btn" HorizontalAlignment="Stretch"/>
+                                                <Separator Margin="0,4" Background="#333"/>
+                                                <TextBlock Text="Active Subject Player:" FontSize="10" Foreground="#888"/>
+                                                <TextBlock Text="{Binding SubjectPlayerName, FallbackValue='None'}" FontWeight="Bold" FontSize="12" Foreground="#c8d6e5"/>
+                                                <Button Content="👤 Set Context Character as Subject" Command="{Binding SendContextAsSubjectCommand}" IsEnabled="{Binding IsLinkConnected}" Classes="toolbar-btn" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock DockPanel.Dock="Bottom" Text="GumpForgeLink.cs port: 2594. Run [gf on server to get PIN." FontSize="10" Foreground="#555" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    <Border/>
+                                </DockPanel>
+
+                                <GridSplitter Grid.Column="1" Background="#1a1a2e" ResizeDirection="Columns"/>
+
+                                <!-- Middle column: Reflected Property Grid -->
+                                <DockPanel Grid.Column="2" Margin="4">
+                                    <TextBlock DockPanel.Dock="Top" Text="{Binding InspectedObjectName, FallbackValue='Properties Inspector'}" FontWeight="Bold" FontSize="11" Foreground="#888" Margin="4,2"/>
+                                    <ListBox ItemsSource="{Binding InspectedObjectProperties}" Background="#0a0a1a" BorderThickness="1" BorderBrush="#1a1a40" Margin="4">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="110,12,*">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" Foreground="#a0a0ff" VerticalAlignment="Center" FontSize="11"/>
+                                                    <TextBlock Grid.Column="1" Text=":" Foreground="#555" VerticalAlignment="Center" FontSize="11"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Value}" Foreground="#e0e0e0" VerticalAlignment="Center" FontSize="11" TextWrapping="Wrap"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </DockPanel>
+
+                                <GridSplitter Grid.Column="3" Background="#1a1a2e" ResizeDirection="Columns"/>
+
+                                <!-- Right column: Simulation Event Log -->
+                                <DockPanel Grid.Column="4" Margin="4">
+                                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="4,2">
+                                        <TextBlock Grid.Column="0" Text="Simulation Event Log" FontWeight="Bold" FontSize="11" Foreground="#888" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Content="Clear" Command="{Binding ClearSimLogCommand}" FontSize="9" Padding="6,2" Background="#16213e"/>
+                                    </Grid>
+                                    <ListBox ItemsSource="{Binding SimLogMessages}" Background="#0a0a1a" BorderThickness="1" BorderBrush="#1a1a40" Margin="4" FontSize="10">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="Padding" Value="4,2"/>
+                                                <Setter Property="Foreground" Value="#a0a0a0"/>
+                                            </Style>
+                                        </ListBox.Styles>
+                                    </ListBox>
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
                     </TabControl>
                 </DockPanel>
             </Border>
         </Grid>
+        
+        <!-- Bottom Status Bar -->
+        <Border DockPanel.Dock="Bottom" Background="#16213e" Padding="8,4" BorderBrush="#1a1a40" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#a0a0a0" FontSize="11"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="{Binding LinkConnectionColor}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding LinkConnectionStatusText}" Foreground="#e0e0e0" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </DockPanel>
 </Window>

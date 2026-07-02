@@ -3,6 +3,7 @@ using GumpForge.Core.Commands;
 using GumpForge.Core.Models;
 using GumpForge.Core.Services;
 using GumpForge.App.Services;
+using GumpForge.App.Views;
 using GumpForge.Generators;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -60,6 +61,26 @@ public partial class MainWindowViewModel : ViewModelBase
     // Active shard profile
     [ObservableProperty] private ShardProfile? _activeProfile;
 
+    // Server Link & Simulation Properties
+    [ObservableProperty] private bool _isLinkConnected;
+    [ObservableProperty] private string _linkConnectionStatusText = "Disconnected";
+    [ObservableProperty] private string _linkConnectionButtonText = "Connect";
+    [ObservableProperty] private string _linkConnectionColor = "#ff0000";
+    [ObservableProperty] private string _subjectPlayerName = "None";
+    [ObservableProperty] private int _subjectPlayerSerial;
+    [ObservableProperty] private string _inspectedObjectName = "Properties Inspector";
+    
+    public ObservableCollection<PropertyRow> InspectedObjectProperties { get; } = [];
+    public ObservableCollection<string> SimLogMessages { get; } = [];
+    
+    [ObservableProperty] private bool _isSimulationMode;
+    [ObservableProperty] private string _modeText = "📐 Edit Mode";
+    [ObservableProperty] private string _modeBackground = "#16213e";
+    [ObservableProperty] private string _modeForeground = "#e0e0e0";
+    
+    public ObservableCollection<PlayerContextProfile> PlayerContexts { get; } = [];
+    [ObservableProperty] private PlayerContextProfile? _selectedPlayerContext;
+
     public MainWindowViewModel()
     {
         AssetBrowser = new AssetBrowserViewModel();
@@ -76,6 +97,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Auto-load assets from known data paths
         _ = TryAutoLoadAssetsAsync();
+
+        // Wire up Server Link Service events
+        var serverLink = ServerLinkService.Instance;
+        serverLink.ConnectionStateChanged += OnConnectionStateChanged;
+        serverLink.AuthCompleted += OnAuthCompleted;
+        serverLink.TargetAcquired += OnTargetAcquired;
+        serverLink.GumpReceived += OnGumpReceived;
+        serverLink.NotificationReceived += OnNotificationReceived;
+        serverLink.LogMessage += OnServerLogMessage;
+
+        // Wire up simulation clicks
+        Canvas.ElementClickedInSimulation += OnElementClickedInSimulation;
     }
 
     partial void OnActivePageChanged(int value)
@@ -114,6 +147,55 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Pass profile to asset browser for metadata search
         AssetBrowser.Profile = profile;
+
+        // Load player contexts from profile
+        PlayerContexts.Clear();
+        foreach (var ctx in profile.PlayerContexts)
+        {
+            PlayerContexts.Add(ctx);
+        }
+        if (PlayerContexts.Count == 0)
+        {
+            var defaultCtx = new PlayerContextProfile { Name = "Default Character", Serial = 0x001A94 };
+            // Stats
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Strength", "125"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Dexterity", "125"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Intelligence", "125"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Hits", "125/125"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Stamina", "125/125"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Mana", "125/125"));
+            
+            // Character Info
+            defaultCtx.Variables.Add(new PlayerVariableEntry("AccessLevel", "Administrator"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Gold", "50000"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Fame", "10000"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Karma", "10000"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("GuildTitle", "Grandmaster Monk"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Race", "Human"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Sex", "Male"));
+            
+            // Skills
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Magery", "120.0"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Chivalry", "120.0"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Necromancy", "120.0"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Healing", "100.0"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Anatomy", "100.0"));
+            
+            // Custom flags
+            defaultCtx.Variables.Add(new PlayerVariableEntry("JediLevel", "3"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("IsMonk", "true"));
+            
+            // Item attributes
+            defaultCtx.Variables.Add(new PlayerVariableEntry("ItemName", "Spellbook"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("ItemID", "0x1ED2"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("Hue", "0"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("UsesRemaining", "50"));
+            defaultCtx.Variables.Add(new PlayerVariableEntry("LootType", "Blessed"));
+            
+            PlayerContexts.Add(defaultCtx);
+            profile.PlayerContexts.Add(defaultCtx);
+        }
+        SelectedPlayerContext = PlayerContexts.FirstOrDefault();
     }
 
     private async Task TryAutoLoadAssetsAsync()
@@ -1307,7 +1389,7 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
-    private void RegenerateCode()
+    public void RegenerateCode()
     {
         var opts = new GenerationOptions
         {
@@ -1343,9 +1425,449 @@ public partial class MainWindowViewModel : ViewModelBase
         WarningCount = results.Count(p => p.Severity == ProblemSeverity.Warning);
         ErrorCount = results.Count(p => p.Severity == ProblemSeverity.Error);
     }
+
+    public void ForceRepaintCanvas()
+    {
+        OnPropertyChanged(nameof(Document));
+    }
+
+    // ═══════════ SERVER LINK & SIMULATION ═══════════
+
+    partial void OnIsSimulationModeChanged(bool value)
+    {
+        Canvas.IsSimulationMode = value;
+        ModeText = value ? "🎮 Play Mode" : "📐 Edit Mode";
+        ModeBackground = value ? "#e94560" : "#16213e";
+        ModeForeground = value ? "#ffffff" : "#e0e0e0";
+
+        LogSim($"Switched to {(value ? "Simulation" : "Design")} Mode.");
+        if (!value)
+        {
+            Canvas.FocusedTextEntry = null;
+        }
+    }
+
+    partial void OnSelectedPlayerContextChanged(PlayerContextProfile? value)
+    {
+        if (value != null)
+        {
+            LogSim($"Active Player Context set to: {value.Name} (Serial: 0x{value.Serial:X})");
+        }
+    }
+
+    private void OnConnectionStateChanged(bool connected)
+    {
+        IsLinkConnected = connected;
+        LinkConnectionStatusText = connected 
+            ? $"Connected ({ServerLinkService.Instance.ConnectedGMName})" 
+            : "Disconnected";
+        LinkConnectionButtonText = connected ? "Disconnect" : "Connect";
+        LinkConnectionColor = connected ? "#00ff00" : "#ff0000";
+
+        if (!connected)
+        {
+            SubjectPlayerName = "None";
+            SubjectPlayerSerial = 0;
+            InspectedObjectName = "Properties Inspector";
+            InspectedObjectProperties.Clear();
+        }
+    }
+
+    private void OnAuthCompleted(bool success, string error)
+    {
+        if (success)
+        {
+            StatusMessage = $"🔌 Connected to server as {ServerLinkService.Instance.ConnectedGMName}";
+        }
+        else
+        {
+            StatusMessage = $"🔌 Connection failed: {error}";
+        }
+    }
+
+    private void OnTargetAcquired(string name, int serial, List<KeyValuePair<string, string>> properties)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+        {
+            InspectedObjectName = string.Format("{0} (Serial: 0x{1:X})", name, serial);
+            InspectedObjectProperties.Clear();
+
+            // Populate the Properties Inspector grid
+            foreach (var prop in properties)
+            {
+                InspectedObjectProperties.Add(new PropertyRow(prop.Key, prop.Value));
+            }
+
+            // Verify if we have an active context profile selected
+            if (SelectedPlayerContext == null)
+            {
+                // Fallback: create default profile if none exists
+                var defaultCtx = new PlayerContextProfile { Name = "Active Context", Serial = serial };
+                PlayerContexts.Add(defaultCtx);
+                SelectedPlayerContext = defaultCtx;
+            }
+
+            var activeCtx = SelectedPlayerContext;
+            
+            // Separate properties into updates (already exist in context) and additions (new variables)
+            List<PlayerVariableEntry> newVariables = new List<PlayerVariableEntry>();
+            int updateCount = 0;
+
+            foreach (var prop in properties)
+            {
+                // Skip TargetType metadata prop
+                if (prop.Key == "TargetType") continue;
+
+                var existingVar = activeCtx.Variables.FirstOrDefault(v => v.Name.Equals(prop.Key, StringComparison.OrdinalIgnoreCase));
+                if (existingVar != null)
+                {
+                    if (existingVar.Value != prop.Value)
+                    {
+                        existingVar.Value = prop.Value;
+                        updateCount++;
+                    }
+                }
+                else
+                {
+                    newVariables.Add(new PlayerVariableEntry(prop.Key, prop.Value));
+                }
+            }
+
+            // Log updates
+            if (updateCount > 0)
+            {
+                LogSim(string.Format("Auto-updated {0} variables in context '{1}' from targeted object.", updateCount, activeCtx.Name));
+            }
+
+            // If there are new variables, prompt the user to import them
+            if (newVariables.Count > 0)
+            {
+                var topLevel = Avalonia.Application.Current?.ApplicationLifetime is
+                    Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow : null;
+
+                if (topLevel != null)
+                {
+                    var importDialog = new ImportVariablesWindow(newVariables);
+                    var result = await importDialog.ShowDialog<bool>(topLevel);
+                    if (result && importDialog.IsImported)
+                    {
+                        foreach (var importedVar in importDialog.SelectedVariables)
+                        {
+                            activeCtx.Variables.Add(importedVar);
+                        }
+                        LogSim(string.Format("Imported {0} new variables into context '{1}'.", importDialog.SelectedVariables.Count, activeCtx.Name));
+                    }
+                }
+            }
+
+            // Check if it's a player target and we want to update the subject player context metadata
+            bool isPlayer = properties.Any(p => 
+                p.Key == "AccessLevel" || 
+                p.Key == "Stamina" || 
+                (p.Key == "TargetType" && p.Value == "Player")
+            );
+            if (isPlayer)
+            {
+                SubjectPlayerName = name;
+                SubjectPlayerSerial = serial;
+            }
+        });
+    }
+
+    private void OnGumpReceived(string json)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            try
+            {
+                var doc = GumpForge.Core.Serialization.ProjectSerializer.DeserializeGump(json);
+                Document = doc;
+                Document.PropertyChanged += (_, _) => RegenerateCode();
+                UndoStack.Clear();
+                Selection.ClearSelection();
+                ActivePage = 0;
+                Canvas.Document = Document;
+                Canvas.ActivePage = 0;
+                Canvas.Zoom = 1.0;
+                Layers.Document = Document;
+                CodePanel.Document = Document;
+                OnPropertyChanged(nameof(Document));
+                RegenerateCode();
+
+                int totalElements = Document.GetAllElements().Count();
+                Title = $"GumpForge — {Document.GumpClassName} ({totalElements} elements, loaded from server)";
+                StatusMessage = $"✅ Loaded gump '{Document.GumpClassName}' from server ({totalElements} elements)";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"⛔ Failed to load gump from server: {ex.Message}";
+            }
+        });
+    }
+
+    private void OnNotificationReceived(string message)
+    {
+        StatusMessage = $"Server message: {message}";
+    }
+
+    private void OnServerLogMessage(string msg)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            SimLogMessages.Insert(0, msg);
+            if (SimLogMessages.Count > 100)
+            {
+                SimLogMessages.RemoveAt(SimLogMessages.Count - 1);
+            }
+        });
+    }
+
+    public void LogSim(string msg)
+    {
+        OnServerLogMessage($"[GumpForge] {msg}");
+    }
+
+    private void OnElementClickedInSimulation(GumpElement element)
+    {
+        LogSim($"Clicked: {element.ElementType} (Name: {element.Name})");
+
+        if (element is GumpButton btn)
+        {
+            LogSim($"Button Triggered: ID = {btn.ButtonId}, Param = {btn.Param}, Type = {btn.ButtonType}");
+
+            if (btn.ButtonType == GumpButtonType.Page)
+            {
+                ActivePage = btn.Param;
+                LogSim($"Page changed to: {btn.Param}");
+            }
+            else
+            {
+                LogSim($"[Simulated Reply] Sent response ID {btn.ButtonId} to server logic.");
+
+                // Container/scroll removal simulation
+                if (Document != null)
+                {
+                    var page = Document.Pages.FirstOrDefault(p => p.PageNumber == ActivePage);
+                    if (page != null)
+                    {
+                        double bx = btn.X;
+                        double by = btn.Y;
+
+                        // Find closest visible Item
+                        GumpItem? closestItem = null;
+                        double minDistance = double.MaxValue;
+
+                        foreach (var el in page.Elements.OfType<GumpItem>())
+                        {
+                            if (!el.IsVisible) continue;
+
+                            double dx = el.X - bx;
+                            double dy = el.Y - by;
+                            double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                            if (dist < minDistance && dist < 120)
+                            {
+                                minDistance = dist;
+                                closestItem = el;
+                            }
+                        }
+
+                        if (closestItem != null)
+                        {
+                            closestItem.IsVisible = false;
+                            LogSim($"[Sim Action] Hid closest item element: '{closestItem.Name}' (ItemID: 0x{closestItem.ItemId:X}) to simulate consumption/take.");
+                        }
+
+                        // Counter adjustment simulation (+ / - next to labels)
+                        GumpLabel? nearbyLabel = null;
+                        double minLabelDist = double.MaxValue;
+
+                        foreach (var el in page.Elements.OfType<GumpLabel>())
+                        {
+                            double dx = el.X - bx;
+                            double dy = el.Y - by;
+                            double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                            if (dist < minLabelDist && dist < 50)
+                            {
+                                minLabelDist = dist;
+                                nearbyLabel = el;
+                            }
+                        }
+
+                        if (nearbyLabel != null && int.TryParse(nearbyLabel.Text, out int number))
+                        {
+                            if (btn.X > nearbyLabel.X)
+                            {
+                                number++;
+                                LogSim($"[Sim Action] Incremented counter '{nearbyLabel.Name}' to {number}");
+                            }
+                            else
+                            {
+                                number = Math.Max(0, number - 1);
+                                LogSim($"[Sim Action] Decremented counter '{nearbyLabel.Name}' to {number}");
+                            }
+                            nearbyLabel.Text = number.ToString();
+                        }
+                    }
+                }
+            }
+        }
+        else if (element is GumpCheck chk)
+        {
+            chk.InitialState = !chk.InitialState;
+            LogSim($"[Sim Action] Checkbox toggled to: {chk.InitialState} (SwitchID: {chk.SwitchId})");
+        }
+        else if (element is GumpRadio rad)
+        {
+            rad.InitialState = true;
+            LogSim($"[Sim Action] Radio selected (SwitchID: {rad.SwitchId}, GroupID: {rad.GroupId})");
+
+            var page = Document.Pages.FirstOrDefault(p => p.PageNumber == ActivePage);
+            if (page != null)
+            {
+                foreach (var other in page.Elements.OfType<GumpRadio>())
+                {
+                    if (other != rad && other.GroupId == rad.GroupId)
+                    {
+                        other.InitialState = false;
+                    }
+                }
+            }
+        }
+        else if (element is GumpTextEntry te)
+        {
+            LogSim($"Focused text entry: '{te.Name}' (EntryID: {te.EntryId}). Type to edit initial text.");
+        }
+        else if (element is GumpItem item)
+        {
+            item.IsVisible = false;
+            LogSim($"[Sim Action] Item removed: '{item.Name}' (ItemID: 0x{item.ItemId:X})");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ConnectToServer()
+    {
+        var topLevel = Avalonia.Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (topLevel is null) return;
+
+        var dialog = new ConnectionWindow();
+        var success = await dialog.ShowDialog<bool>(topLevel);
+        if (success && dialog.ConnectionSuccess)
+        {
+            LogSim("Connection initialized.");
+        }
+    }
+
+    [RelayCommand]
+    private void DisconnectFromServer()
+    {
+        ServerLinkService.Instance.Disconnect();
+    }
+
+    [RelayCommand]
+    private async Task ToggleLinkConnection()
+    {
+        if (IsLinkConnected)
+        {
+            DisconnectFromServer();
+        }
+        else
+        {
+            await ConnectToServer();
+        }
+    }
+
+    [RelayCommand]
+    private void RequestTargetAny()
+    {
+        ServerLinkService.Instance.RequestTarget();
+    }
+
+    [RelayCommand]
+    private void RequestTargetPlayer()
+    {
+        ServerLinkService.Instance.RequestTarget();
+    }
+
+    [RelayCommand]
+    private void RequestTargetItem()
+    {
+        ServerLinkService.Instance.RequestTarget();
+    }
+
+    [RelayCommand]
+    private void SendContextAsSubject()
+    {
+        if (SelectedPlayerContext != null)
+        {
+            SubjectPlayerName = SelectedPlayerContext.Name;
+            SubjectPlayerSerial = SelectedPlayerContext.Serial;
+            LogSim($"Local subject player set to context character: {SelectedPlayerContext.Name} (Serial: 0x{SelectedPlayerContext.Serial:X})");
+        }
+    }
+
+    [RelayCommand]
+    private void ClearSimLog()
+    {
+        SimLogMessages.Clear();
+    }
+
+    [RelayCommand]
+    private async Task ManagePlayerContexts()
+    {
+        var topLevel = Avalonia.Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+        if (topLevel is null) return;
+
+        var dialog = new PlayerContextManagerWindow(PlayerContexts);
+        var result = await dialog.ShowDialog<bool>(topLevel);
+        if (result && dialog.IsSaved)
+        {
+            PlayerContexts.Clear();
+            if (ActiveProfile != null)
+            {
+                ActiveProfile.PlayerContexts.Clear();
+                foreach (var p in dialog.SavedProfiles)
+                {
+                    PlayerContexts.Add(p);
+                    ActiveProfile.PlayerContexts.Add(p);
+                }
+            }
+            else
+            {
+                foreach (var p in dialog.SavedProfiles)
+                {
+                    PlayerContexts.Add(p);
+                }
+            }
+            SelectedPlayerContext = PlayerContexts.FirstOrDefault();
+            LogSim("Player Context Profiles updated.");
+
+            // Save profile changes
+            if (ActiveProfile != null)
+            {
+                try
+                {
+                    await GumpForge.Core.Serialization.ProfileSerializer.SaveAsync(ActiveProfile);
+                    LogSim("Shard Profile auto-saved successfully.");
+                }
+                catch (Exception ex)
+                {
+                    LogSim($"Failed to auto-save profile: {ex.Message}");
+                }
+            }
+        }
+    }
 }
 
 public partial class AssetBrowserViewModel : ViewModelBase
+
 {
     [ObservableProperty] private string _filterText = string.Empty;
     [ObservableProperty] private int _filterIdStart;
@@ -1757,6 +2279,19 @@ public partial class AssetBrowserViewModel : ViewModelBase
         foreach (var thumb in SelectedThumbnails)
             collection.AssetIds.Remove(thumb.GumpId);
     }
+
+}
+
+public class PropertyRow
+{
+    public string Name { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+
+    public PropertyRow(string name, string value)
+    {
+        Name = name;
+        Value = value;
+    }
 }
 
 /// <summary>Change detection status for an asset compared to previous session.</summary>
@@ -1813,6 +2348,12 @@ public partial class CanvasViewModel : ViewModelBase
     [ObservableProperty] private string _toolMode = "Select"; // Select, Pan
     [ObservableProperty] private int _activePage;
 
+    // Simulation Mode Support
+    [ObservableProperty] private bool _isSimulationMode;
+    [ObservableProperty] private GumpTextEntry? _focusedTextEntry;
+    
+    public event Action<GumpElement>? ElementClickedInSimulation;
+
     public SelectionManager Selection { get; }
     public UndoStack UndoStack { get; }
 
@@ -1827,6 +2368,20 @@ public partial class CanvasViewModel : ViewModelBase
         _document = document;
         Selection = selection;
         UndoStack = undoStack;
+    }
+
+    public void TriggerSimulatedClick(GumpElement element)
+    {
+        if (element is GumpTextEntry textEntry)
+        {
+            FocusedTextEntry = textEntry;
+        }
+        else
+        {
+            FocusedTextEntry = null;
+        }
+
+        ElementClickedInSimulation?.Invoke(element);
     }
 
     /// <summary>Add a vertical guide at the given canvas X position.</summary>

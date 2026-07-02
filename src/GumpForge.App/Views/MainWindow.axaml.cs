@@ -984,7 +984,7 @@ public partial class MainWindow : Window
 
             foreach (var gump in gumps)
             {
-                BuildGumpAnalysisUI(panel, gump);
+                BuildGumpAnalysisUI(panel, gump, script);
             }
 
             header.Text = $"📜 {script.FileName} — {gumps.Count} gump class(es)";
@@ -1004,8 +1004,10 @@ public partial class MainWindow : Window
     /// <summary>
     /// Builds the analysis detail UI for a single discovered gump class.
     /// </summary>
-    private void BuildGumpAnalysisUI(StackPanel parent, GumpForge.ScriptAnalysis.DiscoveredGump gump)
+    private void BuildGumpAnalysisUI(StackPanel parent, GumpForge.ScriptAnalysis.DiscoveredGump gump, GumpForge.ScriptAnalysis.IndexedScript script)
     {
+        var inputControls = new Dictionary<string, Control>();
+
         // ── Class header ──
         var classHeader = new Border
         {
@@ -1059,42 +1061,75 @@ public partial class MainWindow : Window
                     FontFamily = new Avalonia.Media.FontFamily("Cascadia Code,Consolas,monospace")
                 });
 
+                // Auto-populate with active Player Context values instead of "(mock)"
+                string defaultValue = v.DefaultValue;
+                if (string.IsNullOrEmpty(defaultValue) || defaultValue == "(mock)")
+                {
+                    var mainVm = this.DataContext as GumpForge.App.ViewModels.MainWindowViewModel;
+                    if (mainVm?.SelectedPlayerContext != null)
+                    {
+                        var tName = v.TypeName.ToLowerInvariant();
+                        var pName = v.Name.ToLowerInvariant();
+
+                        if (tName.Contains("mobile") || tName.Contains("player") || pName == "from" || pName == "owner")
+                        {
+                            defaultValue = mainVm.SelectedPlayerContext.Name;
+                        }
+                        else if (tName.Contains("item") || pName.Contains("item"))
+                        {
+                            var itemVar = mainVm.SelectedPlayerContext.Variables.FirstOrDefault(x => x.Name.Equals("ItemName", StringComparison.OrdinalIgnoreCase));
+                            defaultValue = itemVar != null ? itemVar.Value : "Item";
+                        }
+                    }
+                }
+
                 // Test input control
                 switch (v.Kind)
                 {
                     case GumpForge.ScriptAnalysis.VariableKind.Boolean:
                         var cb = new CheckBox
                         {
-                            Content = $"= {v.DefaultValue}",
-                            IsChecked = v.DefaultValue == "true",
+                            Content = string.Format("= {0}", defaultValue),
+                            IsChecked = defaultValue.ToLower() == "true",
                             FontSize = 10,
                             Foreground = Avalonia.Media.Brushes.Gray
                         };
                         varPanel.Children.Add(cb);
+                        inputControls[v.Name] = cb;
                         break;
 
                     case GumpForge.ScriptAnalysis.VariableKind.Integer:
+                        if (v.Name.Equals("serial", StringComparison.OrdinalIgnoreCase) && (defaultValue == "0" || defaultValue == ""))
+                        {
+                            var mainVm = this.DataContext as GumpForge.App.ViewModels.MainWindowViewModel;
+                            if (mainVm?.SelectedPlayerContext != null)
+                            {
+                                defaultValue = mainVm.SelectedPlayerContext.Serial.ToString();
+                            }
+                        }
                         var numBox = new TextBox
                         {
-                            Text = v.DefaultValue,
+                            Text = defaultValue,
                             Width = 60, FontSize = 10,
                             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0a0a1a")),
                             Foreground = Avalonia.Media.Brushes.White,
                             BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#333"))
                         };
                         varPanel.Children.Add(numBox);
+                        inputControls[v.Name] = numBox;
                         break;
 
                     default:
                         var txtBox = new TextBox
                         {
-                            Text = v.DefaultValue,
+                            Text = defaultValue,
                             Width = 120, FontSize = 10,
                             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0a0a1a")),
                             Foreground = Avalonia.Media.Brushes.White,
                             BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#333"))
                         };
                         varPanel.Children.Add(txtBox);
+                        inputControls[v.Name] = txtBox;
                         break;
                 }
 
@@ -1236,6 +1271,140 @@ public partial class MainWindow : Window
                 });
             }
         }
+
+        // ── Render Button ──
+        var renderBtn = new Button
+        {
+            Content = "▶ Render Gump to Canvas",
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#e94560")),
+            Foreground = Avalonia.Media.Brushes.White,
+            FontWeight = Avalonia.Media.FontWeight.Bold,
+            Margin = new Thickness(0, 12, 0, 0),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        renderBtn.Click += async (s, ev) =>
+        {
+            var context = new Dictionary<string, string>();
+            foreach (var kvp in inputControls)
+            {
+                if (kvp.Value is CheckBox cb)
+                {
+                    context[kvp.Key] = (cb.IsChecked == true) ? "true" : "false";
+                }
+                else if (kvp.Value is TextBox tb)
+                {
+                    context[kvp.Key] = tb.Text ?? "";
+                }
+            }
+
+            try
+            {
+                var sourceCode = await File.ReadAllTextAsync(script.FilePath);
+                var parser = new GumpForge.Parsers.ServUoParser();
+                
+                var mainVm = this.DataContext as GumpForge.App.ViewModels.MainWindowViewModel;
+                if (mainVm?.SelectedPlayerContext != null)
+                {
+                    // Look up AccessLevel and compute IsStaff
+                    var accessLevelVar = mainVm.SelectedPlayerContext.Variables.FirstOrDefault(x => x.Name.Equals("AccessLevel", StringComparison.OrdinalIgnoreCase));
+                    string accessLevel = accessLevelVar != null ? accessLevelVar.Value : "Player";
+                    bool isStaff = !accessLevel.Equals("Player", StringComparison.OrdinalIgnoreCase);
+
+                    // Copy flat context properties
+                    parser.EvaluationContext["Name"] = mainVm.SelectedPlayerContext.Name;
+                    parser.EvaluationContext["Serial"] = mainVm.SelectedPlayerContext.Serial.ToString();
+                    parser.EvaluationContext["AccessLevel"] = accessLevel;
+                    parser.EvaluationContext["IsStaff"] = isStaff.ToString().ToLower();
+
+                    foreach (var v in mainVm.SelectedPlayerContext.Variables)
+                    {
+                        parser.EvaluationContext[v.Name] = v.Value;
+                    }
+
+                    // Dynamically map properties for any Mobile/Player parameters
+                    var mobileParameters = gump.Variables
+                        .Where(v => v.TypeName.Contains("Mobile") || v.TypeName.Contains("Player") || v.Name.Equals("from", StringComparison.OrdinalIgnoreCase) || v.Name.Equals("owner", StringComparison.OrdinalIgnoreCase))
+                        .Select(v => v.Name)
+                        .Concat(new[] { "from", "owner", "m_From", "m_Owner" })
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var prefix in mobileParameters)
+                    {
+                        parser.EvaluationContext[prefix] = mainVm.SelectedPlayerContext.Name;
+                        parser.EvaluationContext[prefix + ".Name"] = mainVm.SelectedPlayerContext.Name;
+                        parser.EvaluationContext[prefix + ".Serial"] = mainVm.SelectedPlayerContext.Serial.ToString();
+                        parser.EvaluationContext[prefix + ".AccessLevel"] = accessLevel;
+                        parser.EvaluationContext[prefix + ".IsStaff"] = isStaff.ToString().ToLower();
+
+                        foreach (var v in mainVm.SelectedPlayerContext.Variables)
+                        {
+                            parser.EvaluationContext[prefix + "." + v.Name] = v.Value;
+                        }
+                    }
+
+                    // Also support Item parameters
+                    var itemParameters = gump.Variables
+                        .Where(v => v.TypeName.Contains("Item") || v.Name.Contains("item"))
+                        .Select(v => v.Name)
+                        .Concat(new[] { "item", "target", "m_Item" })
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                    var itemVar = mainVm.SelectedPlayerContext.Variables.FirstOrDefault(x => x.Name.Equals("ItemName", StringComparison.OrdinalIgnoreCase));
+                    string itemName = itemVar != null ? itemVar.Value : "Item";
+                    var itemIdVar = mainVm.SelectedPlayerContext.Variables.FirstOrDefault(x => x.Name.Equals("ItemID", StringComparison.OrdinalIgnoreCase));
+                    string itemId = itemIdVar != null ? itemIdVar.Value : "0";
+
+                    foreach (var prefix in itemParameters)
+                    {
+                        parser.EvaluationContext[prefix] = itemName;
+                        parser.EvaluationContext[prefix + ".Name"] = itemName;
+                        parser.EvaluationContext[prefix + ".ItemID"] = itemId;
+                        parser.EvaluationContext[prefix + ".Serial"] = itemId;
+
+                        foreach (var v in mainVm.SelectedPlayerContext.Variables)
+                        {
+                            parser.EvaluationContext[prefix + "." + v.Name] = v.Value;
+                        }
+                    }
+                }
+
+                foreach (var kvp in context)
+                {
+                    parser.EvaluationContext[kvp.Key] = kvp.Value;
+                }
+
+                var result = parser.Parse(sourceCode);
+                if (result.Document != null && mainVm != null)
+                {
+                    mainVm.Document = result.Document;
+                    mainVm.Document.PropertyChanged += (_, _) => mainVm.RegenerateCode();
+                    mainVm.UndoStack.Clear();
+                    mainVm.Selection.ClearSelection();
+                    mainVm.ActivePage = 0;
+                    mainVm.Canvas.Document = mainVm.Document;
+                    mainVm.Canvas.ActivePage = 0;
+                    mainVm.Layers.Document = mainVm.Document;
+                    mainVm.CodePanel.Document = mainVm.Document;
+
+                    mainVm.ForceRepaintCanvas();
+                    mainVm.RegenerateCode();
+                    mainVm.LogSim(string.Format("Successfully compiled and rendered '{0}' to canvas.", gump.ClassName));
+                }
+                else if (result.Errors.Count > 0)
+                {
+                    var errs = string.Join("\n", result.Errors.Select(e => string.Format("Line {0}: {1}", e.Line, e.Message)));
+                    mainVm?.LogSim(string.Format("Render error:\n{0}", errs));
+                }
+            }
+            catch (Exception ex)
+            {
+                var mainVm = this.DataContext as GumpForge.App.ViewModels.MainWindowViewModel;
+                mainVm?.LogSim(string.Format("Render error: {0}", ex.Message));
+            }
+        };
+        parent.Children.Add(renderBtn);
     }
 
     private static void AddSectionHeader(StackPanel parent, string text)

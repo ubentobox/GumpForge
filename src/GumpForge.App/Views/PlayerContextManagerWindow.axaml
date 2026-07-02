@@ -1,0 +1,130 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:GumpForge.Core.Models"
+        x:Class="GumpForge.App.Views.PlayerContextManagerWindow"
+        Title="GumpForge — Player Context Manager"
+        Width="650" Height="500"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#0a0a1a"
+        ExtendClientAreaToDecorationsHint="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#e94560"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#12122a"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#e94560"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20">
+        <DockPanel>
+            <!-- Header -->
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                <TextBlock Text="⚙️ Player Context Manager" FontSize="20" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock Text="Manage pre-defined player attributes, stats, and custom flags for Gump simulation." FontSize="11"
+                           Foreground="#888" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Bottom buttons -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                        Spacing="8" Margin="0,16,0,0">
+                <Button Classes="secondary" Content="Cancel" Click="Cancel_Click"/>
+                <Button Classes="accent" Content="Save &amp; Close" Click="Save_Click"/>
+            </StackPanel>
+
+            <!-- Main Layout -->
+            <Grid ColumnDefinitions="200,16,*">
+                <!-- Left Column: Profile list -->
+                <DockPanel Grid.Column="0">
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+                        <Button Content="➕ Add" Click="AddProfile_Click" Classes="secondary" Width="97" HorizontalContentAlignment="Center"/>
+                        <Button Content="🗑️ Delete" Click="DeleteProfile_Click" Classes="secondary" Width="97" HorizontalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <ListBox Name="ProfileList" SelectionMode="Single" SelectionChanged="ProfileList_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:PlayerContextProfile">
+                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <!-- Right Column: Detail editor -->
+                <DockPanel Grid.Column="2" Name="DetailPanel" IsVisible="False">
+                    <!-- General Details -->
+                    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+                        <Grid ColumnDefinitions="*,12,100">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Profile Name" FontSize="11" Margin="0,0,0,4"/>
+                                <TextBox Name="ProfileNameText" TextChanged="ProfileNameText_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Serial" FontSize="11" Margin="0,0,0,4"/>
+                                <TextBox Name="ProfileSerialText" TextChanged="ProfileSerialText_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                            <TextBlock Grid.Column="0" Text="Variables &amp; Flags" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                <Button Content="➕ Variable" Click="AddVariable_Click" Classes="secondary" FontSize="10" Padding="8,4"/>
+                                <Button Content="🗑️ Remove" Click="DeleteVariable_Click" Classes="secondary" FontSize="10" Padding="8,4"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Variables List -->
+                    <ListBox Name="VariablesList" SelectionMode="Single">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:PlayerVariableEntry">
+                                <Grid ColumnDefinitions="*,12,*">
+                                    <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" Watermark="Variable Name" Padding="6,4" Height="28" FontSize="12" Background="#16213e" BorderThickness="1"/>
+                                    <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="Value" Padding="6,4" Height="28" FontSize="12" Background="#16213e" BorderThickness="1"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+
+                <TextBlock Grid.Column="2" Text="Select or add a profile to start editing." 
+                           VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#555"
+                           Name="PlaceholderText"/>
+            </Grid>
+        </DockPanel>
+    </Border>
+</Window>

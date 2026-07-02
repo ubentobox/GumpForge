@@ -44,3 +44,8 @@ coverage/
 
 # Publish output
 publish/
+
+# Custom Exclusions
+Server Integration for GumpForge.md
+*.gumpproj
+

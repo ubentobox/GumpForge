@@ -44,6 +44,16 @@ public static class ProjectSerializer
         return doc;
     }
 
+    /// <summary>
+    /// Deserialize a JSON string representing a gump directly into a GumpDocument.
+    /// </summary>
+    public static GumpDocument DeserializeGump(string json)
+    {
+        var dto = JsonSerializer.Deserialize<ProjectDto>(json, Options)
+            ?? throw new InvalidOperationException("Failed to deserialize gump.");
+        return FromDto(dto);
+    }
+
     // DTO for JSON serialization
     private class ProjectDto
     {
@@ -193,14 +203,157 @@ public static class ProjectSerializer
         foreach (var pageDto in dto.Pages)
         {
             var page = new GumpPage(pageDto.PageNumber) { Name = pageDto.Name };
-            // Elements would need a factory to reconstruct from DTO
-            // This is a simplified version for now
+            foreach (var elDto in pageDto.Elements)
+            {
+                try
+                {
+                    page.Elements.Add(ElementFromDto(elDto));
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to deserialize element: {ex.Message}");
+                }
+            }
             doc.Pages.Add(page);
         }
 
         if (doc.Pages.Count == 0)
             doc.Pages.Add(new GumpPage(0));
 
+        // Reconstruct custom assets
+        doc.CustomAssets.Clear();
+        foreach (var assetDto in dto.CustomAssets)
+        {
+            doc.CustomAssets.Add(new CustomAssetEntry
+            {
+                GumpId = assetDto.GumpId,
+                SourcePath = assetDto.SourcePath,
+                FileHash = assetDto.FileHash,
+                Tag = assetDto.Tag
+            });
+        }
+
         return doc;
     }
+
+    private static GumpElement ElementFromDto(ElementDto dto)
+    {
+        GumpElement element = dto.Type switch
+        {
+            "Background" => new GumpBackground { GumpId = GetInt(dto.Properties, "gumpId") },
+            "Image" => new GumpImage { GumpId = GetInt(dto.Properties, "gumpId"), Hue = GetInt(dto.Properties, "hue") },
+            "ImageTiled" => new GumpImageTiled { GumpId = GetInt(dto.Properties, "gumpId") },
+            "AlphaRegion" => new GumpAlphaRegion(),
+            "Button" => new GumpButton
+            {
+                NormalId = GetInt(dto.Properties, "normalId"),
+                PressedId = GetInt(dto.Properties, "pressedId"),
+                ButtonId = GetInt(dto.Properties, "buttonId"),
+                ButtonType = GetEnum<GumpButtonType>(dto.Properties, "buttonType"),
+                Param = GetInt(dto.Properties, "param")
+            },
+            "Check" => new GumpCheck
+            {
+                InactiveId = GetInt(dto.Properties, "inactiveId"),
+                ActiveId = GetInt(dto.Properties, "activeId"),
+                SwitchId = GetInt(dto.Properties, "switchId"),
+                InitialState = GetBool(dto.Properties, "initialState")
+            },
+            "Radio" => new GumpRadio
+            {
+                InactiveId = GetInt(dto.Properties, "inactiveId"),
+                ActiveId = GetInt(dto.Properties, "activeId"),
+                GroupId = GetInt(dto.Properties, "groupId"),
+                SwitchId = GetInt(dto.Properties, "switchId"),
+                InitialState = GetBool(dto.Properties, "initialState")
+            },
+            "Label" => new GumpLabel
+            {
+                Text = GetString(dto.Properties, "text"),
+                Hue = GetInt(dto.Properties, "hue"),
+                Font = GetInt(dto.Properties, "font")
+            },
+            "LabelCropped" => new GumpLabelCropped
+            {
+                Text = GetString(dto.Properties, "text"),
+                Hue = GetInt(dto.Properties, "hue")
+            },
+            "Html" => new GumpHtml
+            {
+                Text = GetString(dto.Properties, "text"),
+                HasBackground = GetBool(dto.Properties, "hasBackground"),
+                HasScrollbar = GetBool(dto.Properties, "hasScrollbar")
+            },
+            "HtmlLocalized" => new GumpHtmlLocalized
+            {
+                ClilocId = GetInt(dto.Properties, "clilocId"),
+                Args = GetString(dto.Properties, "args"),
+                Color = GetInt(dto.Properties, "color"),
+                HasBackground = GetBool(dto.Properties, "hasBackground"),
+                HasScrollbar = GetBool(dto.Properties, "hasScrollbar")
+            },
+            "TextEntry" => new GumpTextEntry
+            {
+                EntryId = GetInt(dto.Properties, "entryId"),
+                InitialText = GetString(dto.Properties, "initialText"),
+                Hue = GetInt(dto.Properties, "hue"),
+                MaxLength = GetInt(dto.Properties, "maxLength")
+            },
+            "Item" => new GumpItem
+            {
+                ItemId = GetInt(dto.Properties, "itemId"),
+                Hue = GetInt(dto.Properties, "hue")
+            },
+            "Tooltip" => new GumpTooltip
+            {
+                ClilocId = GetInt(dto.Properties, "clilocId")
+            },
+            "Group" => DeserializeGroup(dto),
+            _ => throw new NotSupportedException($"Unknown element type: {dto.Type}")
+        };
+
+        if (Guid.TryParse(dto.Id, out var id))
+        {
+            var backingField = typeof(GumpElement).GetField("<Id>k__BackingField", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            backingField?.SetValue(element, id);
+        }
+
+        element.Name = dto.Name;
+        element.X = dto.X;
+        element.Y = dto.Y;
+        element.Width = dto.Width;
+        element.Height = dto.Height;
+        element.Page = dto.Page;
+        element.IsLocked = dto.IsLocked;
+        element.IsVisible = dto.IsVisible;
+
+        return element;
+    }
+
+    private static GumpGroup DeserializeGroup(ElementDto dto)
+    {
+        var group = new GumpGroup();
+        if (dto.Properties.TryGetValue("children", out var childrenVal) && childrenVal.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var childEl in childrenVal.EnumerateArray())
+            {
+                var childDto = JsonSerializer.Deserialize<ElementDto>(childEl.GetRawText(), Options);
+                if (childDto != null)
+                    group.Children.Add(ElementFromDto(childDto));
+            }
+        }
+        return group;
+    }
+
+    private static int GetInt(Dictionary<string, JsonElement> props, string key) =>
+        props.TryGetValue(key, out var val) && val.ValueKind == JsonValueKind.Number ? val.GetInt32() : 0;
+
+    private static bool GetBool(Dictionary<string, JsonElement> props, string key) =>
+        props.TryGetValue(key, out var val) && (val.ValueKind == JsonValueKind.True || val.ValueKind == JsonValueKind.False) && val.GetBoolean();
+
+    private static string GetString(Dictionary<string, JsonElement> props, string key) =>
+        props.TryGetValue(key, out var val) && val.ValueKind == JsonValueKind.String ? val.GetString() ?? "" : "";
+
+    private static T GetEnum<T>(Dictionary<string, JsonElement> props, string key) where T : struct =>
+        props.TryGetValue(key, out var val) && val.ValueKind == JsonValueKind.String && Enum.TryParse<T>(val.GetString(), out var res) ? res : default;
 }

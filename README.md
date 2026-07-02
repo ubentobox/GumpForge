@@ -14,6 +14,25 @@ GumpForge is a desktop application for designing Ultima Online Gump (Graphical U
 - Multi-page gump support with page navigation
 - Color tagging for visual element organization
 
+### 🌐 Game Server Link
+- **Secure Link Connection** — Connect directly to your game server (ServUO/RunUO) using staff credentials.
+- **Dynamic Gump Capture** — Run the `[gf` command in-game and target any item to automatically load its live gump layout (like spellbooks, quest menus, or containers) onto the GumpForge canvas.
+- **In-Game Player Inspection** — Target players to sync their stats, skills, and custom variables into GumpForge for contextual testing.
+- **Server Script Hook (`GumpForgeLink.cs`)** — A lightweight, backward-compatible, and security-conscious C# script that handles server-side communication and property reflection.
+- **Security Redaction** — Automatically strips sensitive database attributes (passwords, hashes, IP addresses) before sending data to GumpForge.
+
+### 👤 Player Context Profiles
+- **Profile Management** — Add, edit, rename, and delete player context profiles inside GumpForge.
+- **Local/Reflected Variables** — Populate profiles with core stats, skills, or custom properties (e.g. `JediLevel`, `IsMonk`) to evaluate conditional scripts.
+- **Variable Auto-Import** — When targeting items/players, GumpForge detects new properties and prompts to import them into your active profile.
+
+### 🎮 Interactive Simulation Mode
+- **Design vs. Play Mode** — Toggle between editing gump designs and testing interactive behavior.
+- **Dynamic Controls** — Live checkbox toggling, radio button group scoping, and keyboard text entry typing.
+- **Action Simulation** — Click page navigation buttons to flip gump pages, double-click item tiles to simulate looting, and adjust numeric counters (e.g. stat or crafting menus).
+- **Replacements & Context Resolution** — Resolves C# member lookups (e.g. `from.Name` or `owner.AccessLevel`) and logical `if/else` statements dynamically using the active player context.
+
+
 ### 📂 UO Client Data Support
 - **MUL format** — Reads `gumpart.mul` / `gumpidx.mul` (legacy clients)
 - **UOP format** — Reads `gumpartLegacyMUL.uop` (modern clients, auto-detected)

@@ -1,3 +1,7 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,6 +16,9 @@ namespace GumpForge.Parsers;
 public class ServUoParser : IGumpCodeParser
 {
     public string TargetName => "ServUO";
+
+    public Dictionary<string, string> EvaluationContext { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, MethodDeclarationSyntax> m_ClassMethods = new(StringComparer.OrdinalIgnoreCase);
 
     public bool CanParse(string source)
     {
@@ -53,6 +60,13 @@ public class ServUoParser : IGumpCodeParser
                 GumpClassName = classDecl.Identifier.Text
             };
 
+            // Index all class methods for inlining
+            m_ClassMethods.Clear();
+            foreach (var member in classDecl.Members.OfType<MethodDeclarationSyntax>())
+            {
+                m_ClassMethods[member.Identifier.Text] = member;
+            }
+
             // Extract namespace — handle both block and file-scoped namespaces
             var namespaceDecl = classDecl.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().FirstOrDefault();
             if (namespaceDecl is not null)
@@ -71,8 +85,20 @@ public class ServUoParser : IGumpCodeParser
                     var args = constructor.Initializer.ArgumentList.Arguments;
                     if (args.Count >= 2)
                     {
-                        doc.GumpX = TryParseInt(args[0].Expression) ?? 100;
-                        doc.GumpY = TryParseInt(args[1].Expression) ?? 100;
+                        doc.GumpX = ResolveValueAsInt(args[0].Expression) ?? 100;
+                        doc.GumpY = ResolveValueAsInt(args[1].Expression) ?? 100;
+                    }
+                }
+
+                // Bind constructor formal parameters to context mock fields
+                var paramList = constructor.ParameterList.Parameters;
+                foreach (var p in paramList)
+                {
+                    var pName = p.Identifier.Text;
+                    // If not already in context, default string parameter to mock / empty
+                    if (!EvaluationContext.ContainsKey(pName))
+                    {
+                        EvaluationContext[pName] = p.Type.ToString().Equals("string", StringComparison.OrdinalIgnoreCase) ? "" : "null";
                     }
                 }
 
@@ -117,7 +143,7 @@ public class ServUoParser : IGumpCodeParser
                         switch (methodName)
                         {
                             case "AddPage":
-                                currentPage = TryParseInt(args[0].Expression) ?? 0;
+                                currentPage = ResolveValueAsInt(args[0].Expression) ?? 0;
                                 doc.GetOrCreatePage(currentPage);
                                 break;
 
@@ -130,7 +156,7 @@ public class ServUoParser : IGumpCodeParser
                                         X = Arg(args, 0), Y = Arg(args, 1),
                                         Width = Arg(args, 2), Height = Arg(args, 3),
                                         GumpId = Arg(args, 4),
-                                        Name = $"Background_{Arg(args, 4):X}"
+                                        Name = string.Format("Background_{0:X}", Arg(args, 4))
                                     });
                                 }
                                 break;
@@ -144,7 +170,7 @@ public class ServUoParser : IGumpCodeParser
                                         X = Arg(args, 0), Y = Arg(args, 1),
                                         GumpId = Arg(args, 2),
                                         Width = 44, Height = 44, // Default; will be updated from art
-                                        Name = $"Image_{Arg(args, 2):X}"
+                                        Name = string.Format("Image_{0:X}", Arg(args, 2))
                                     };
                                     if (args.Count >= 4) img.Hue = Arg(args, 3);
                                     AddToPage(doc, currentPage, img);
@@ -159,7 +185,7 @@ public class ServUoParser : IGumpCodeParser
                                         X = Arg(args, 0), Y = Arg(args, 1),
                                         Width = Arg(args, 2), Height = Arg(args, 3),
                                         GumpId = Arg(args, 4),
-                                        Name = $"TiledImage_{Arg(args, 4):X}"
+                                        Name = string.Format("TiledImage_{0:X}", Arg(args, 4))
                                     });
                                 }
                                 break;
@@ -187,7 +213,7 @@ public class ServUoParser : IGumpCodeParser
                                         ButtonType = ParseButtonType(args, 5),
                                         Param = Arg(args, 6),
                                         Width = 40, Height = 40, // Default button size
-                                        Name = $"Button_{Arg(args, 4)}"
+                                        Name = string.Format("Button_{0}", Arg(args, 4))
                                     });
                                 }
                                 break;
@@ -202,7 +228,7 @@ public class ServUoParser : IGumpCodeParser
                                         InitialState = ArgBool(args, 4),
                                         SwitchId = Arg(args, 5),
                                         Width = 30, Height = 30,
-                                        Name = $"Check_{Arg(args, 5)}"
+                                        Name = string.Format("Check_{0}", Arg(args, 5))
                                     });
                                 }
                                 break;
@@ -217,7 +243,7 @@ public class ServUoParser : IGumpCodeParser
                                         InitialState = ArgBool(args, 4),
                                         SwitchId = Arg(args, 5),
                                         Width = 30, Height = 30,
-                                        Name = $"Radio_{Arg(args, 5)}"
+                                        Name = string.Format("Radio_{0}", Arg(args, 5))
                                     });
                                 }
                                 break;
@@ -233,7 +259,7 @@ public class ServUoParser : IGumpCodeParser
                                         Text = text,
                                         Width = Math.Max(text.Length * 8, 60),
                                         Height = 20,
-                                        Name = $"Label"
+                                        Name = "Label"
                                     });
                                 }
                                 break;
@@ -247,7 +273,7 @@ public class ServUoParser : IGumpCodeParser
                                         Width = Arg(args, 2), Height = Arg(args, 3),
                                         Hue = Arg(args, 4),
                                         Text = ArgString(args, 5),
-                                        Name = $"LabelCropped"
+                                        Name = "LabelCropped"
                                     });
                                 }
                                 break;
@@ -275,7 +301,7 @@ public class ServUoParser : IGumpCodeParser
                                         X = Arg(args, 0), Y = Arg(args, 1),
                                         Width = Arg(args, 2), Height = Arg(args, 3),
                                         ClilocId = Arg(args, 4),
-                                        Name = $"HtmlLoc_{Arg(args, 4)}"
+                                        Name = string.Format("HtmlLoc_{0}", Arg(args, 4))
                                     };
                                     if (args.Count == 7)
                                     {
@@ -290,7 +316,6 @@ public class ServUoParser : IGumpCodeParser
                                     }
                                     else if (args.Count >= 9)
                                     {
-                                        // AddHtmlLocalized(x, y, w, h, cliloc, args, color, bg, scroll)
                                         loc.Args = ArgString(args, 5);
                                         loc.Color = Arg(args, 6);
                                         loc.HasBackground = ArgBool(args, 7);
@@ -310,7 +335,7 @@ public class ServUoParser : IGumpCodeParser
                                         Hue = Arg(args, 4),
                                         EntryId = Arg(args, 5),
                                         InitialText = ArgString(args, 6),
-                                        Name = $"TextEntry_{Arg(args, 5)}"
+                                        Name = string.Format("TextEntry_{0}", Arg(args, 5))
                                     };
                                     if (args.Count >= 8)
                                         entry.MaxLength = Arg(args, 7);
@@ -327,7 +352,7 @@ public class ServUoParser : IGumpCodeParser
                                         X = Arg(args, 0), Y = Arg(args, 1),
                                         ItemId = Arg(args, 2),
                                         Width = 44, Height = 44,
-                                        Name = $"Item_{Arg(args, 2):X}"
+                                        Name = string.Format("Item_{0:X}", Arg(args, 2))
                                     };
                                     if (args.Count >= 4) item.Hue = Arg(args, 3);
                                     AddToPage(doc, currentPage, item);
@@ -340,13 +365,35 @@ public class ServUoParser : IGumpCodeParser
                                     AddToPage(doc, currentPage, new GumpTooltip
                                     {
                                         ClilocId = Arg(args, 0),
-                                        Name = $"Tooltip_{Arg(args, 0)}"
+                                        Name = string.Format("Tooltip_{0}", Arg(args, 0))
                                     });
                                 }
                                 break;
 
                             default:
-                                if (methodName?.StartsWith("Add") == true)
+                                // CHECK FOR CLASS-LEVEL METHOD INLINING
+                                if (methodName != null && m_ClassMethods.TryGetValue(methodName, out var methodDecl))
+                                {
+                                    var scopedContext = new Dictionary<string, string>(EvaluationContext, StringComparer.OrdinalIgnoreCase);
+                                    var paramList = methodDecl.ParameterList.Parameters;
+                                    for (int i = 0; i < paramList.Count && i < args.Count; i++)
+                                    {
+                                        var pName = paramList[i].Identifier.Text;
+                                        var argVal = ResolveValueAsString(args[i].Expression);
+                                        if (argVal != null)
+                                        {
+                                            scopedContext[pName] = argVal;
+                                        }
+                                    }
+
+                                    var previousContext = EvaluationContext;
+                                    EvaluationContext = scopedContext;
+
+                                    ParseStatements(methodDecl.Body?.Statements ?? [], doc, result);
+
+                                    EvaluationContext = previousContext;
+                                }
+                                else if (methodName?.StartsWith("Add") == true)
                                 {
                                     result.Warnings.Add(new ParseDiagnostic
                                     {
@@ -378,7 +425,6 @@ public class ServUoParser : IGumpCodeParser
                     {
                         case "Closable": doc.IsClosable = value == "true"; break;
                         case "Disposable": doc.IsDisposable = value == "true"; break;
-                        // Handle all spelling variants
                         case "Dragable":
                         case "Draggable":
                         case "Movable":
@@ -387,10 +433,298 @@ public class ServUoParser : IGumpCodeParser
                         case "Resizable":
                         case "Resizeable":
                             doc.IsResizable = value == "true"; break;
+                        default:
+                            var rightVal = ResolveValueAsString(assignment.Right);
+                            if (rightVal != null)
+                            {
+                                EvaluationContext[propName] = rightVal;
+                            }
+                            break;
+                    }
+                }
+            }
+            else if (statement is LocalDeclarationStatementSyntax localDecl)
+            {
+                foreach (var variable in localDecl.Declaration.Variables)
+                {
+                    var varName = variable.Identifier.Text;
+                    if (variable.Initializer != null)
+                    {
+                        var varValue = ResolveValueAsString(variable.Initializer.Value);
+                        if (varValue != null)
+                        {
+                            EvaluationContext[varName] = varValue;
+                        }
+                    }
+                }
+            }
+            else if (statement is IfStatementSyntax ifStmt)
+            {
+                bool condValue = EvaluateCondition(ifStmt.Condition);
+                if (condValue)
+                {
+                    if (ifStmt.Statement is BlockSyntax block)
+                    {
+                        ParseStatements(block.Statements, doc, result);
+                    }
+                    else
+                    {
+                        ParseStatements(new SyntaxList<StatementSyntax>().Add(ifStmt.Statement), doc, result);
+                    }
+                }
+                else if (ifStmt.Else != null)
+                {
+                    if (ifStmt.Else.Statement is BlockSyntax elseBlock)
+                    {
+                        ParseStatements(elseBlock.Statements, doc, result);
+                    }
+                    else
+                    {
+                        ParseStatements(new SyntaxList<StatementSyntax>().Add(ifStmt.Else.Statement), doc, result);
                     }
                 }
             }
         }
+    }
+
+    private bool EvaluateCondition(ExpressionSyntax condition)
+    {
+        if (condition == null) return true;
+
+        if (condition is LiteralExpressionSyntax literal)
+        {
+            if (condition.IsKind(SyntaxKind.TrueLiteralExpression)) return true;
+            if (condition.IsKind(SyntaxKind.FalseLiteralExpression)) return false;
+        }
+
+        if (condition is ParenthesizedExpressionSyntax parens)
+        {
+            return EvaluateCondition(parens.Expression);
+        }
+
+        if (condition is PrefixUnaryExpressionSyntax prefix && prefix.IsKind(SyntaxKind.LogicalNotExpression))
+        {
+            return !EvaluateCondition(prefix.Operand);
+        }
+
+        if (condition is BinaryExpressionSyntax binary)
+        {
+            if (binary.IsKind(SyntaxKind.LogicalAndExpression))
+            {
+                return EvaluateCondition(binary.Left) && EvaluateCondition(binary.Right);
+            }
+            if (binary.IsKind(SyntaxKind.LogicalOrExpression))
+            {
+                return EvaluateCondition(binary.Left) || EvaluateCondition(binary.Right);
+            }
+
+            var leftStr = ResolveValueAsString(binary.Left);
+            var rightStr = ResolveValueAsString(binary.Right);
+
+            var leftNum = ResolveValueAsInt(binary.Left);
+            var rightNum = ResolveValueAsInt(binary.Right);
+
+            if (leftNum.HasValue && rightNum.HasValue)
+            {
+                int l = leftNum.Value;
+                int r = rightNum.Value;
+
+                if (binary.IsKind(SyntaxKind.EqualsExpression)) return l == r;
+                if (binary.IsKind(SyntaxKind.NotEqualsExpression)) return l != r;
+                if (binary.IsKind(SyntaxKind.GreaterThanExpression)) return l > r;
+                if (binary.IsKind(SyntaxKind.LessThanExpression)) return l < r;
+                if (binary.IsKind(SyntaxKind.GreaterThanOrEqualExpression)) return l >= r;
+                if (binary.IsKind(SyntaxKind.LessThanOrEqualExpression)) return l <= r;
+            }
+            else
+            {
+                string l = (leftStr == "null" ? "" : leftStr) ?? "";
+                string r = (rightStr == "null" ? "" : rightStr) ?? "";
+
+                if (binary.IsKind(SyntaxKind.EqualsExpression)) return l.Equals(r, StringComparison.OrdinalIgnoreCase);
+                if (binary.IsKind(SyntaxKind.NotEqualsExpression)) return !l.Equals(r, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        var identifier = condition.ToString().Trim();
+        if (EvaluationContext.TryGetValue(identifier, out string? boolVal))
+        {
+            return boolVal.ToLower() == "true" || boolVal == "1";
+        }
+
+        if (!string.IsNullOrEmpty(identifier) && identifier != "null" && identifier != "false")
+        {
+            if (EvaluationContext.TryGetValue(identifier, out string? val))
+            {
+                return !string.IsNullOrEmpty(val) && val != "null" && val.ToLower() != "false";
+            }
+        }
+
+        return false;
+    }
+
+    private string? ResolveValueAsString(ExpressionSyntax expr)
+    {
+        if (expr == null) return null;
+        var text = expr.ToString().Trim();
+        
+        if (expr is LiteralExpressionSyntax literal && expr.IsKind(SyntaxKind.StringLiteralExpression))
+        {
+            return literal.Token.ValueText;
+        }
+
+        if (expr is IdentifierNameSyntax id)
+        {
+            var varName = id.Identifier.Text;
+            if (EvaluationContext.TryGetValue(varName, out string? val))
+            {
+                return val;
+            }
+        }
+
+        // Handle ternary conditional expressions (cond ? trueVal : falseVal)
+        if (expr is ConditionalExpressionSyntax condExpr)
+        {
+            bool cond = EvaluateCondition(condExpr.Condition);
+            return cond ? ResolveValueAsString(condExpr.WhenTrue) : ResolveValueAsString(condExpr.WhenFalse);
+        }
+
+        if (expr is InterpolatedStringExpressionSyntax interpolated)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var content in interpolated.Contents)
+            {
+                if (content is InterpolatedStringTextSyntax textSyntax)
+                {
+                    sb.Append(textSyntax.TextToken.ValueText);
+                }
+                else if (content is InterpolationSyntax interpolation)
+                {
+                    var val = ResolveValueAsString(interpolation.Expression);
+                    sb.Append(val ?? "");
+                }
+            }
+            return sb.ToString();
+        }
+
+        if (expr is MemberAccessExpressionSyntax memberAccess)
+        {
+            var objName = memberAccess.Expression.ToString();
+            var propName = memberAccess.Name.Identifier.Text;
+            if (propName.Equals("Name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (EvaluationContext.TryGetValue("Name", out string? nameVal)) return nameVal;
+                if (EvaluationContext.TryGetValue(objName + "Name", out string? objNameVal)) return objNameVal;
+            }
+            if (EvaluationContext.TryGetValue(objName + "." + propName, out string? dottedVal)) return dottedVal;
+            if (EvaluationContext.TryGetValue(propName, out string? propVal)) return propVal;
+        }
+
+        if (expr is InvocationExpressionSyntax invocation)
+        {
+            var mName = GetMethodName(invocation);
+            if (mName != null && m_ClassMethods.TryGetValue(mName, out var method))
+            {
+                return EvaluateMethodReturnString(method, invocation.ArgumentList.Arguments);
+            }
+            else if (mName == "ToString")
+            {
+                if (invocation.Expression is MemberAccessExpressionSyntax ma)
+                {
+                    return ResolveValueAsString(ma.Expression);
+                }
+            }
+            else if (mName == "Format" && invocation.Expression.ToString().Contains("String"))
+            {
+                var args = invocation.ArgumentList.Arguments;
+                if (args.Count > 0)
+                {
+                    var formatStr = ResolveValueAsString(args[0].Expression) ?? "";
+                    var formatArgs = new object[args.Count - 1];
+                    for (int i = 1; i < args.Count; i++)
+                    {
+                        formatArgs[i - 1] = ResolveValueAsString(args[i].Expression) ?? "";
+                    }
+                    try
+                    {
+                        return string.Format(formatStr, formatArgs);
+                    }
+                    catch { return formatStr; }
+                }
+            }
+        }
+
+        if (EvaluationContext.TryGetValue(text, out string? value))
+        {
+            return value;
+        }
+
+        return text.Trim('"', '@', ' ');
+    }
+
+    private string? EvaluateMethodReturnString(MethodDeclarationSyntax method, SeparatedSyntaxList<ArgumentSyntax> args)
+    {
+        var scopedContext = new Dictionary<string, string>(EvaluationContext, StringComparer.OrdinalIgnoreCase);
+        var paramList = method.ParameterList.Parameters;
+        for (int i = 0; i < paramList.Count && i < args.Count; i++)
+        {
+            var val = ResolveValueAsString(args[i].Expression);
+            if (val != null) scopedContext[paramList[i].Identifier.Text] = val;
+        }
+
+        var previousContext = EvaluationContext;
+        EvaluationContext = scopedContext;
+
+        var returnStmt = method.Body?.DescendantNodes().OfType<ReturnStatementSyntax>().FirstOrDefault();
+        string? result = null;
+        if (returnStmt != null)
+        {
+            result = ResolveValueAsString(returnStmt.Expression);
+        }
+
+        EvaluationContext = previousContext;
+        return result;
+    }
+
+    private int? ResolveValueAsInt(ExpressionSyntax expr)
+    {
+        var resolvedStr = ResolveValueAsString(expr);
+        if (resolvedStr == null) return null;
+
+        if (int.TryParse(resolvedStr, out int val))
+        {
+            return val;
+        }
+
+        if (resolvedStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(resolvedStr[2..], System.Globalization.NumberStyles.HexNumber, null, out int hexVal))
+                return hexVal;
+        }
+
+        if (expr is BinaryExpressionSyntax binary)
+        {
+            var left = ResolveValueAsInt(binary.Left);
+            var right = ResolveValueAsInt(binary.Right);
+            if (left.HasValue && right.HasValue)
+            {
+                if (binary.IsKind(SyntaxKind.AddExpression)) return left.Value + right.Value;
+                if (binary.IsKind(SyntaxKind.SubtractExpression)) return left.Value - right.Value;
+                if (binary.IsKind(SyntaxKind.MultiplyExpression)) return left.Value * right.Value;
+                if (binary.IsKind(SyntaxKind.DivideExpression) && right.Value != 0) return left.Value / right.Value;
+            }
+        }
+
+        return TryParseInt(expr);
+    }
+
+    private bool? ResolveValueAsBool(ExpressionSyntax expr)
+    {
+        var resolvedStr = ResolveValueAsString(expr)?.ToLower().Trim();
+        if (resolvedStr == "true" || resolvedStr == "1") return true;
+        if (resolvedStr == "false" || resolvedStr == "0") return false;
+
+        return EvaluateCondition(expr);
     }
 
     /// <summary>
@@ -438,31 +772,22 @@ public class ServUoParser : IGumpCodeParser
         };
     }
 
-    private static int Arg(SeparatedSyntaxList<ArgumentSyntax> args, int index)
+    private int Arg(SeparatedSyntaxList<ArgumentSyntax> args, int index)
     {
         if (index >= args.Count) return 0;
-        return TryParseInt(args[index].Expression) ?? 0;
+        return ResolveValueAsInt(args[index].Expression) ?? 0;
     }
 
-    private static bool ArgBool(SeparatedSyntaxList<ArgumentSyntax> args, int index)
+    private bool ArgBool(SeparatedSyntaxList<ArgumentSyntax> args, int index)
     {
         if (index >= args.Count) return false;
-        var text = args[index].Expression.ToString().Trim().ToLower();
-        return text == "true" || text == "1";
+        return ResolveValueAsBool(args[index].Expression) ?? false;
     }
 
-    private static string ArgString(SeparatedSyntaxList<ArgumentSyntax> args, int index)
+    private string ArgString(SeparatedSyntaxList<ArgumentSyntax> args, int index)
     {
         if (index >= args.Count) return string.Empty;
-        var expr = args[index].Expression;
-
-        // Handle @"..." verbatim strings, "..." regular strings, and String.Format
-        return expr switch
-        {
-            LiteralExpressionSyntax literal => literal.Token.ValueText,
-            InterpolatedStringExpressionSyntax interpolated => interpolated.ToString().Trim('$', '"', '@'),
-            _ => expr.ToString().Trim('"', '@', ' ')
-        };
+        return ResolveValueAsString(args[index].Expression) ?? string.Empty;
     }
 
     private static GumpButtonType ParseButtonType(SeparatedSyntaxList<ArgumentSyntax> args, int index)
@@ -471,7 +796,6 @@ public class ServUoParser : IGumpCodeParser
         var text = args[index].Expression.ToString();
         if (text.Contains("Page")) return GumpButtonType.Page;
         if (text.Contains("Reply")) return GumpButtonType.Reply;
-        // Try numeric
         if (int.TryParse(text, out int val))
             return (GumpButtonType)val;
         return GumpButtonType.Reply;
@@ -481,33 +805,27 @@ public class ServUoParser : IGumpCodeParser
     {
         var text = expr.ToString().Trim();
 
-        // Handle hex literals (0x1234)
         if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
             if (int.TryParse(text[2..], System.Globalization.NumberStyles.HexNumber, null, out int hexVal))
                 return hexVal;
         }
 
-        // Handle regular integers
         if (int.TryParse(text, out int val))
             return val;
 
-        // Handle negation
         if (expr is PrefixUnaryExpressionSyntax prefix && prefix.IsKind(SyntaxKind.UnaryMinusExpression))
         {
             var inner = TryParseInt(prefix.Operand);
             if (inner.HasValue) return -inner.Value;
         }
 
-        // Handle casts like (int)Buttons.Confirm
         if (expr is CastExpressionSyntax cast)
             return TryParseInt(cast.Expression);
 
-        // Handle parenthesized: (100)
         if (expr is ParenthesizedExpressionSyntax parens)
             return TryParseInt(parens.Expression);
 
-        // Can't resolve — dynamic expression
         return null;
     }
 }

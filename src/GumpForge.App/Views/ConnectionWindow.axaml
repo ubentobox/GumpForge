@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GumpForge.App.Views.ConnectionWindow"
+        Title="GumpForge — Connect to Server"
+        Width="400" Height="340"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#0a0a1a"
+        ExtendClientAreaToDecorationsHint="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="BorderBrush" Value="#1a1a40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#e94560"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <DockPanel>
+            <!-- Header -->
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                <TextBlock Text="🔌 Connect to Server" FontSize="20" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock Text="Enter details to bind GumpForge with your live shard." FontSize="11"
+                           Foreground="#888" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Bottom Buttons -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                        Spacing="8" Margin="0,16,0,0">
+                <Button Classes="secondary" Content="Cancel" Click="Cancel_Click"/>
+                <Button Classes="accent" Content="Connect" Click="Connect_Click"/>
+            </StackPanel>
+
+            <!-- Form -->
+            <Grid RowDefinitions="Auto,8,Auto,8,Auto" ColumnDefinitions="*,12,*">
+                <!-- Host -->
+                <StackPanel Grid.Row="0" Grid.Column="0">
+                    <TextBlock Text="Server Host / IP" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox Name="HostText" Text="127.0.0.1"/>
+                </StackPanel>
+
+                <!-- Port -->
+                <StackPanel Grid.Row="0" Grid.Column="2">
+                    <TextBlock Text="Port" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox Name="PortText" Text="2595"/>
+                </StackPanel>
+
+                <!-- Username -->
+                <StackPanel Grid.Row="2" Grid.Column="0">
+                    <TextBlock Text="Staff Username" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox Name="UsernameText" PlaceholderText="Account Name"/>
+                </StackPanel>
+
+                <!-- Password -->
+                <StackPanel Grid.Row="2" Grid.Column="2">
+                    <TextBlock Text="Password" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox Name="PasswordText" PasswordChar="*" PlaceholderText="Account Password"/>
+                </StackPanel>
+                
+                <!-- Status/Error message -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" 
+                           Name="StatusText" Foreground="#ff4a4a" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+            </Grid>
+        </DockPanel>
+    </Border>
+</Window>

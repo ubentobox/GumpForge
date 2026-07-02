@@ -1,0 +1,77 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:GumpForge.Core.Models"
+        x:Class="GumpForge.App.Views.ImportVariablesWindow"
+        Title="GumpForge — Import Targeted Variables"
+        Width="450" Height="400"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#0a0a1a"
+        ExtendClientAreaToDecorationsHint="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#e94560"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#c8d6e5"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20">
+        <DockPanel>
+            <!-- Header -->
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                <TextBlock Text="📥 Import New Variables" FontSize="18" FontWeight="Bold" Foreground="#e94560"/>
+                <TextBlock Text="New properties were found on the targeted game object. Select which properties to import as context variables." 
+                           FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Bottom Buttons -->
+            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto,8,Auto" Margin="0,12,0,0">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Select All" Click="SelectAll_Click" Classes="secondary" FontSize="11" Padding="8,4"/>
+                    <Button Content="Deselect All" Click="DeselectAll_Click" Classes="secondary" FontSize="11" Padding="8,4"/>
+                </StackPanel>
+                <Button Grid.Column="2" Classes="secondary" Content="Cancel" Click="Cancel_Click"/>
+                <Button Grid.Column="4" Classes="accent" Content="Import Selected" Click="Import_Click"/>
+            </Grid>
+
+            <!-- Variables List -->
+            <Border BorderBrush="#1a1a40" BorderThickness="1" CornerRadius="4" Background="#12122a" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl Name="VariablesItemsControl">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:PlayerVariableEntry">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,4">
+                                    <CheckBox Grid.Column="0" Name="VariableCheckBox" IsChecked="True" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#a0a0ff"/>
+                                        <TextBlock Text=" = " Foreground="#555"/>
+                                        <TextBlock Text="{Binding Value}" Foreground="#e0e0e0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+    </Border>
+</Window>

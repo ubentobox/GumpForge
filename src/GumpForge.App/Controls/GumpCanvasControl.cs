@@ -262,7 +262,12 @@ public class GumpCanvasControl : Control
             switch (element)
             {
                 case GumpBackground bg:
-                    DrawGumpArt(context, bg.GumpId, elementRect, "#1a3a5c", $"BG 0x{bg.GumpId:X4}", isSelected, mgr, zoom);
+                    Draw9SliceBackground(context, bg.GumpId, elementRect, mgr, zoom);
+                    if (isSelected)
+                    {
+                        var selectPen = new Pen(new SolidColorBrush(Color.Parse("#e94560")), 1.5 * zoom);
+                        context.DrawRectangle(selectPen, elementRect);
+                    }
                     break;
                 case GumpImage img:
                     DrawGumpArt(context, img.GumpId, elementRect, "#2a4a3c", $"IMG 0x{img.GumpId:X4}", isSelected, mgr, zoom, img.Hue);
@@ -341,7 +346,12 @@ public class GumpCanvasControl : Control
                                 DrawGumpArt(context, cImg.GumpId, childRect, "#2a4a3c", $"IMG 0x{cImg.GumpId:X4}", childSelected, mgr, zoom);
                                 break;
                             case GumpBackground cBg:
-                                DrawGumpArt(context, cBg.GumpId, childRect, "#1a3a5c", $"BG 0x{cBg.GumpId:X4}", childSelected, mgr, zoom);
+                                Draw9SliceBackground(context, cBg.GumpId, childRect, mgr, zoom);
+                                if (childSelected)
+                                {
+                                    var selectPen = new Pen(new SolidColorBrush(Color.Parse("#e94560")), 1.5 * zoom);
+                                    context.DrawRectangle(selectPen, childRect);
+                                }
                                 break;
                             case GumpButton cBtn:
                                 DrawGumpArt(context, cBtn.NormalId, childRect, "#5c1a3a", $"BTN {cBtn.ButtonId}", childSelected, mgr, zoom);
@@ -375,6 +385,81 @@ public class GumpCanvasControl : Control
                 var lockText = new FormattedText("🔒", System.Globalization.CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight, Typeface.Default, 9 * zoom, new SolidColorBrush(Color.Parse("#e94560")));
                 context.DrawText(lockText, new Point(lockRect.X + 1, lockRect.Y));
+            }
+        }
+    }
+
+    private void Draw9SliceBackground(DrawingContext context, int baseGumpId, Rect rect, AssetManager mgr, double zoom)
+    {
+        var tl = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId) : null;
+        var t  = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 1) : null;
+        var tr = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 2) : null;
+        var l  = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 3) : null;
+        var c  = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 4) : null;
+        var r  = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 5) : null;
+        var bl = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 6) : null;
+        var b  = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 7) : null;
+        var br = mgr.IsLoaded ? mgr.GetBitmap(baseGumpId + 8) : null;
+
+        if (tl == null || t == null || tr == null || l == null || c == null || r == null || bl == null || b == null || br == null)
+        {
+            // Fallback: solid color box with border
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#1a1a2e")), rect);
+            var fallbackBorder = new Pen(new SolidColorBrush(Color.Parse("#3f3f5f")), 1.5 * zoom);
+            context.DrawRectangle(fallbackBorder, rect);
+            return;
+        }
+
+        double wTL = tl.Size.Width * zoom;
+        double hTL = tl.Size.Height * zoom;
+        double wTR = tr.Size.Width * zoom;
+        double hTR = tr.Size.Height * zoom;
+        double wBL = bl.Size.Width * zoom;
+        double hBL = bl.Size.Height * zoom;
+        double wBR = br.Size.Width * zoom;
+        double hBR = br.Size.Height * zoom;
+
+        double hT = t.Size.Height * zoom;
+        double wL = l.Size.Width * zoom;
+        double wR = r.Size.Width * zoom;
+        double hB = b.Size.Height * zoom;
+
+        double x = rect.X;
+        double y = rect.Y;
+        double w = rect.Width;
+        double h = rect.Height;
+
+        // Draw Corners
+        context.DrawImage(tl, new Rect(x, y, wTL, hTL));
+        context.DrawImage(tr, new Rect(x + w - wTR, y, wTR, hTR));
+        context.DrawImage(bl, new Rect(x, y + h - hBL, wBL, hBL));
+        context.DrawImage(br, new Rect(x + w - wBR, y + h - hBR, wBR, hBR));
+
+        // Draw Edges
+        DrawTiledImageSegment(context, t, new Rect(x + wTL, y, w - wTL - wTR, hT), zoom);
+        DrawTiledImageSegment(context, b, new Rect(x + wBL, y + h - hB, w - wBL - wBR, hB), zoom);
+        DrawTiledImageSegment(context, l, new Rect(x, y + hTL, wL, h - hTL - hBL), zoom);
+        DrawTiledImageSegment(context, r, new Rect(x + w - wR, y + hTR, wR, h - hTR - hBR), zoom);
+
+        // Draw Center
+        DrawTiledImageSegment(context, c, new Rect(x + wL, y + hT, w - wL - wR, h - hT - hB), zoom);
+    }
+
+    private void DrawTiledImageSegment(DrawingContext context, Avalonia.Media.Imaging.Bitmap bitmap, Rect destRect, double zoom)
+    {
+        if (destRect.Width <= 0 || destRect.Height <= 0) return;
+
+        double tileW = bitmap.Size.Width * zoom;
+        double tileH = bitmap.Size.Height * zoom;
+
+        using (context.PushClip(destRect))
+        {
+            for (double tx = destRect.X; tx < destRect.Right; tx += tileW)
+            {
+                for (double ty = destRect.Y; ty < destRect.Bottom; ty += tileH)
+                {
+                    context.DrawImage(bitmap, new Rect(tx, ty, tileW, tileH));
+                }
             }
         }
     }
@@ -724,6 +809,24 @@ public class GumpCanvasControl : Control
         var pos = e.GetPosition(this);
         var props = e.GetCurrentPoint(this).Properties;
 
+        if (_vm.IsSimulationMode)
+        {
+            if (props.IsLeftButtonPressed)
+            {
+                double z = _vm.Zoom;
+                double cx = (pos.X - _offsetX) / z;
+                double cy = (pos.Y - _offsetY) / z;
+                var elementHit = HitTest(cx, cy);
+                if (elementHit is not null)
+                {
+                    _vm.TriggerSimulatedClick(elementHit);
+                    InvalidateVisual();
+                }
+            }
+            e.Handled = true;
+            return;
+        }
+
         // Middle button = Pan
         if (props.IsMiddleButtonPressed)
         {
@@ -1055,10 +1158,38 @@ public class GumpCanvasControl : Control
         }
     }
 
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+        if (_vm is null || !_vm.IsSimulationMode) return;
+
+        if (_vm.FocusedTextEntry is not null && !string.IsNullOrEmpty(e.Text))
+        {
+            _vm.FocusedTextEntry.InitialText += e.Text;
+            InvalidateVisual();
+            e.Handled = true;
+        }
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         if (_vm is null) return;
+
+        if (_vm.IsSimulationMode)
+        {
+            if (_vm.FocusedTextEntry is not null && (e.Key == Key.Back || e.Key == Key.Delete))
+            {
+                var txt = _vm.FocusedTextEntry.InitialText;
+                if (txt.Length > 0)
+                {
+                    _vm.FocusedTextEntry.InitialText = txt.Substring(0, txt.Length - 1);
+                    InvalidateVisual();
+                }
+                e.Handled = true;
+            }
+            return;
+        }
 
         int step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
 

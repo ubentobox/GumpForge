@@ -37,6 +37,11 @@ public partial class ShardProfile : ObservableObject
     public ObservableCollection<TagRule> TagRules { get; set; } = [];
 
     /// <summary>
+    /// Saved player context profiles.
+    /// </summary>
+    public ObservableCollection<PlayerContextProfile> PlayerContexts { get; set; } = [];
+
+    /// <summary>
     /// Hashes of last-known gump art entries, used to detect NEW/CHANGED assets.
     /// </summary>
     public Dictionary<int, string> AssetHashes { get; set; } = [];
